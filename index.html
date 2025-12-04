@@ -2439,6 +2439,55 @@
                 });
             }
 
+            async signUp(formData) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        const { firstName, lastName, email, role } = formData;
+
+                        if (firstName && email) {
+                            const employees = this.getEmployees();
+                            const newEmployee = {
+                                id: employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1,
+                                firstName,
+                                lastName: lastName || '',
+                                email,
+                                role: role || 'Employee',
+                                department: 'General',
+                                position: role || 'Employee',
+                                hireDate: new Date().toISOString().split('T')[0],
+                                performanceIndex: 75,
+                                isActive: true,
+                                managerId: null
+                            };
+
+                            employees.push(newEmployee);
+                            this.saveEmployees(employees);
+
+                            this.currentUser = {
+                                id: newEmployee.id,
+                                firstName: newEmployee.firstName,
+                                lastName: newEmployee.lastName,
+                                email: newEmployee.email,
+                                role: newEmployee.role,
+                                department: newEmployee.department,
+                                position: newEmployee.position
+                            };
+
+                            this.accessToken = 'mock_access_token';
+                            this.refreshToken = 'mock_refresh_token';
+
+                            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                            localStorage.setItem('accessToken', this.accessToken);
+                            localStorage.setItem('refreshToken', this.refreshToken);
+
+                            resolve({ success: true, user: this.currentUser });
+                        } else {
+                            resolve({ success: false, error: 'Please provide a name and email to sign up' });
+                        }
+                    }, 500);
+                });
+            }
+
             logout() {
                 this.currentUser = null;
                 this.accessToken = null;
