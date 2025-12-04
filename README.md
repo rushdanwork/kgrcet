@@ -31,6 +31,12 @@ This project converts the static HR portal into a full-stack web app with authen
    ```
    The API will be available at `http://localhost:4000` by default.
 
+5. Serve the frontend (for local testing):
+   ```bash
+   npx http-server . -p 3000
+   ```
+   Then open `http://localhost:3000/index.html` in your browser. The frontend expects the API to be reachable at `http://localhost:4000`; if the backend is not running, login and other requests will fail with `Failed to fetch` or `ERR_CONNECTION_REFUSED` errors.
+
 ## Frontend notes
 - The frontend keeps the existing `hrtesting4.html` styling but now calls the API using `fetch`.
 - Tokens returned from `/api/auth/login` or OAuth callbacks should be stored in `localStorage` as `token`.
@@ -58,3 +64,4 @@ This project converts the static HR portal into a full-stack web app with authen
 - Use HTTPS in production and rotate JWT secrets regularly.
 - Validate user input on both client and server.
 - Rate limit authentication endpoints in production deployments.
+- If you hit `Cannot read properties of null (reading 'addEventListener')`, ensure you are loading the bundled `index.html` (not a partial copy) so all expected DOM elements exist when scripts initialize.
