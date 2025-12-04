@@ -1880,6 +1880,13 @@
                                     <i class="fas fa-download"></i> Export Data
                                 </button>
                             </div>
+                            <div class="report-card">
+                                <h3>Demo Data</h3>
+                                <p>Reset the HR portal back to its original sample data.</p>
+                                <button class="btn btn-danger" id="reset-demo-data">
+                                    <i class="fas fa-rotate-left"></i> Reset Demo Data
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2096,9 +2103,54 @@
             }
 
             initializeData() {
+                const defaults = this.getDefaultData();
+
                 // Initialize default data if not exists
                 if (!localStorage.getItem('employees')) {
-                    const defaultEmployees = [
+                    this.saveEmployees(defaults.employees);
+                }
+
+                if (!localStorage.getItem('tasks')) {
+                    this.saveTasks(defaults.tasks);
+                }
+
+                if (!localStorage.getItem('feedback')) {
+                    this.saveFeedback(defaults.feedback);
+                }
+
+                if (!localStorage.getItem('reviews')) {
+                    this.saveReviews(defaults.reviews);
+                }
+
+                if (!localStorage.getItem('attendance')) {
+                    this.saveAttendance(defaults.attendance);
+                }
+
+                if (!localStorage.getItem('leaves')) {
+                    this.saveLeaves(defaults.leaves);
+                }
+
+                if (!localStorage.getItem('shifts')) {
+                    this.saveShifts(defaults.shifts);
+                }
+
+                if (!localStorage.getItem('documents')) {
+                    this.saveDocuments(defaults.documents);
+                }
+
+                // Initialize current user from localStorage or set default
+                this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || defaults.currentUser;
+
+                // Initialize tokens
+                this.accessToken = localStorage.getItem('accessToken');
+                this.refreshToken = localStorage.getItem('refreshToken');
+            }
+
+            getDefaultData() {
+                const today = new Date().toISOString().split('T')[0];
+
+                return {
+                    employees: [
                         {
                             id: 1,
                             firstName: 'John',
@@ -2177,12 +2229,8 @@
                             isActive: true,
                             managerId: 1
                         }
-                    ];
-                    this.saveEmployees(defaultEmployees);
-                }
-
-                if (!localStorage.getItem('tasks')) {
-                    const defaultTasks = [
+                    ],
+                    tasks: [
                         {
                             id: 1,
                             title: 'Q4 Marketing Campaign',
@@ -2205,12 +2253,8 @@
                             status: 'In Progress',
                             createdAt: '2023-09-15'
                         }
-                    ];
-                    this.saveTasks(defaultTasks);
-                }
-
-                if (!localStorage.getItem('feedback')) {
-                    const defaultFeedback = [
+                    ],
+                    feedback: [
                         {
                             id: 1,
                             recipientId: 5,
@@ -2231,17 +2275,9 @@
                             isAnonymous: false,
                             createdAt: '2023-10-10'
                         }
-                    ];
-                    this.saveFeedback(defaultFeedback);
-                }
-
-                if (!localStorage.getItem('reviews')) {
-                    this.saveReviews([]);
-                }
-
-                if (!localStorage.getItem('attendance')) {
-                    const today = new Date().toISOString().split('T')[0];
-                    const defaultAttendance = [
+                    ],
+                    reviews: [],
+                    attendance: [
                         {
                             id: 1,
                             employeeId: 1,
@@ -2296,12 +2332,8 @@
                             clockOut: null,
                             totalHours: 0
                         }
-                    ];
-                    this.saveAttendance(defaultAttendance);
-                }
-
-                if (!localStorage.getItem('leaves')) {
-                    const defaultLeaves = [
+                    ],
+                    leaves: [
                         {
                             id: 1,
                             employeeId: 3,
@@ -2324,32 +2356,39 @@
                             status: 'Pending',
                             createdAt: '2023-10-20'
                         }
-                    ];
-                    this.saveLeaves(defaultLeaves);
-                }
-
-                if (!localStorage.getItem('shifts')) {
-                    this.saveShifts([]);
-                }
-
-                if (!localStorage.getItem('documents')) {
-                    this.saveDocuments([]);
-                }
-
-                // Initialize current user from localStorage or set default
-                this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || {
-                    id: 100,
-                    firstName: 'Jane',
-                    lastName: 'Smith',
-                    email: 'jane.smith@company.com',
-                    role: 'HR Manager',
-                    department: 'HR',
-                    position: 'HR Manager'
+                    ],
+                    shifts: [],
+                    documents: [],
+                    currentUser: {
+                        id: 100,
+                        firstName: 'Jane',
+                        lastName: 'Smith',
+                        email: 'jane.smith@company.com',
+                        role: 'HR Manager',
+                        department: 'HR',
+                        position: 'HR Manager'
+                    }
                 };
+            }
 
-                // Initialize tokens
-                this.accessToken = localStorage.getItem('accessToken');
-                this.refreshToken = localStorage.getItem('refreshToken');
+            resetDemoData() {
+                const defaults = this.getDefaultData();
+
+                this.saveEmployees(defaults.employees);
+                this.saveTasks(defaults.tasks);
+                this.saveFeedback(defaults.feedback);
+                this.saveReviews(defaults.reviews);
+                this.saveAttendance(defaults.attendance);
+                this.saveLeaves(defaults.leaves);
+                this.saveShifts(defaults.shifts);
+                this.saveDocuments(defaults.documents);
+
+                this.currentUser = defaults.currentUser;
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                this.accessToken = null;
+                this.refreshToken = null;
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
             }
 
             // Authentication methods
@@ -2894,6 +2933,10 @@
 
                 document.getElementById('export-reviews').addEventListener('click', () => {
                     this.exportReviewData();
+                });
+
+                document.getElementById('reset-demo-data').addEventListener('click', () => {
+                    this.handleResetDemoData();
                 });
 
                 // Admin add user
@@ -4267,7 +4310,7 @@
             exportReviewData() {
                 const reviews = this.dataManager.getReviews();
                 const employees = this.dataManager.getEmployees();
-                
+
                 const reviewsWithNames = reviews.map(review => {
                     const employee = employees.find(emp => emp.id === review.employeeId);
                     return {
@@ -4283,10 +4326,20 @@
                     };
                 });
 
-                const csvContent = this.convertToCSV(reviewsWithNames, 
+                const csvContent = this.convertToCSV(reviewsWithNames,
                     ['employee', 'period', 'qualityWork', 'communication', 'collaboration', 'problemSolving', 'overallRating', 'strengths', 'improvements']);
                 this.downloadCSV(csvContent, 'performance_reviews.csv');
                 this.showToast('Review data exported successfully!', 'success');
+            }
+
+            handleResetDemoData() {
+                const confirmed = confirm('This will clear current data and restore the original HR demo setup. Continue?');
+                if (!confirmed) return;
+
+                this.dataManager.resetDemoData();
+                this.showToast('Demo data restored. Please sign in again to continue.', 'success');
+                this.switchAuthTab('signin');
+                this.showAuthPage();
             }
 
             convertToCSV(data, fields) {
