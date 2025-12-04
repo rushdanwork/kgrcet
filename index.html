@@ -1,0 +1,4348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management System - Production</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add Cytoscape for org chart -->
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre/cytoscape-dagre.js"></script>
+    <style>
+        :root {
+            --primary: #2c80ff;
+            --primary-light: #e6f0ff;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --white: #ffffff;
+            --gray: #6c757d;
+            --gray-light: #e9ecef;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --box-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* Auth Pages Styles */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .auth-card {
+            background: var(--white);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+        }
+
+        .auth-tab.active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        /* Main App Styles */
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 250px;
+            background: var(--white);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .sidebar-header h2 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-left: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 15px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            color: var(--dark);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        .header {
+            background: var(--white);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--box-shadow);
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .notification-icon, .user-profile {
+            margin-left: 20px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-icon i {
+            font-size: 1.2rem;
+            color: var(--gray);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        /* Content Area Styles */
+        .content {
+            padding: 30px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h2 {
+            font-size: 1.8rem;
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            color: var(--gray);
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            box-shadow: var(--box-shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        /* Dashboard Styles - Updated */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .dashboard-stat-card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .dashboard-stat-card:hover {
+            box-shadow: var(--box-shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .dashboard-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .stat-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .attendance-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+            font-weight: 500;
+        }
+
+        .stat-present .stat-value {
+            color: var(--success);
+        }
+
+        .stat-absent .stat-value {
+            color: var(--danger);
+        }
+
+        .stat-leave .stat-value {
+            color: var(--warning);
+        }
+
+        .attendance-list {
+            margin-top: 20px;
+        }
+
+        .attendance-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .attendance-item:last-child {
+            border-bottom: none;
+        }
+
+        .attendance-time {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .upcoming-reviews-list {
+            margin-top: 15px;
+        }
+
+        .review-item {
+            padding: 12px;
+            background: var(--light);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .review-item:hover {
+            background: var(--primary-light);
+            transform: translateX(5px);
+        }
+
+        .review-date {
+            font-size: 0.85rem;
+            color: var(--gray);
+            background: var(--white);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .performance-metric {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .performance-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .performance-label {
+            font-size: 1rem;
+            color: var(--gray);
+            font-weight: 500;
+        }
+
+        .progress-container {
+            margin: 15px 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--gray-light);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn i {
+            margin-right: 5px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a6de9;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Table Styles */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        th {
+            background: var(--light);
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        tr:hover {
+            background: var(--primary-light);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 128, 255, 0.2);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        /* Org Chart Styles */
+        .org-chart-container {
+            height: 700px;
+            border-radius: var(--border-radius);
+            background: var(--white);
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .org-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-light);
+            background: var(--white);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .org-chart-canvas {
+            width: 100%;
+            height: 100%;
+            padding-top: 80px;
+        }
+
+        .org-chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .node-context-menu {
+            position: absolute;
+            background: var(--white);
+            box-shadow: var(--box-shadow-hover);
+            border-radius: 8px;
+            padding: 10px 0;
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .node-context-menu.active {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: var(--transition);
+        }
+
+        .context-menu-item:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* Employee Directory */
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-container input {
+            flex: 1;
+        }
+
+        .filter-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: var(--success);
+            color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+            z-index: 1100;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* Attendance Status */
+        .attendance-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-present {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-absent {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-leave {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--gray-light);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Water Ball Animation */
+        .water-ball-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .water-ball {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .water {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: height 1s ease;
+            border-radius: 50% 50% 0 0;
+        }
+
+        .water-ball-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 992px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+
+            .sidebar-menu {
+                display: flex;
+                overflow-x: auto;
+            }
+
+            .menu-item {
+                padding: 15px;
+                white-space: nowrap;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+
+            .menu-item:hover, .menu-item.active {
+                border-left: none;
+                border-bottom: 3px solid var(--primary);
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .org-chart-container {
+                height: 500px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .header {
+                padding: 15px;
+            }
+
+            .header-left h1 {
+                font-size: 1.2rem;
+            }
+
+            .quick-actions {
+                flex-direction: column;
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .attendance-stats {
+                flex-direction: column;
+            }
+
+            .stat-item {
+                min-width: 100%;
+            }
+        }
+
+        /* Additional Styles */
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .status.active, .status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.in-progress {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .feedback-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+        .feedback-type.positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        .feedback-type.constructive {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .feedback-type.developmental {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .feedback-item, .review-item, .checkin-item {
+            padding: 15px 0;
+            border-bottom: 1px solid var(--gray-light);
+        }
+        .feedback-item:last-child, .review-item:last-child, .checkin-item:last-child {
+            border-bottom: none;
+        }
+        .feedback-header, .review-header, .checkin-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .feedback-date, .review-date, .checkin-date {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .report-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        .rating-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+        .shift-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: var(--border-radius);
+        }
+        .shift-card h4 {
+            margin-bottom: 10px;
+        }
+        .shift-card ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+        .shift-card li {
+            margin-bottom: 5px;
+        }
+        .document-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .document-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        .document-icon {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        .leave-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 15px;
+        }
+        .calendar-day {
+            padding: 10px;
+            text-align: center;
+            border-radius: 4px;
+            background: var(--light);
+        }
+        .calendar-day.leave {
+            background: var(--warning);
+            color: white;
+        }
+        .rating-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Pages -->
+    <div id="auth-page" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <div class="auth-tab active" data-tab="signin">Sign In</div>
+                <div class="auth-tab" data-tab="signup">Sign Up</div>
+            </div>
+            
+            <form id="signin-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="signin-email">Email</label>
+                    <input type="email" id="signin-email" value="admin@hr.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="signin-password">Password</label>
+                    <input type="password" id="signin-password" value="password123" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Sign In
+                </button>
+            </form>
+
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="signup-role">Role</label>
+                    <select id="signup-role" required>
+                        <option value="">Select Role</option>
+                        <option value="EMPLOYEE">Employee</option>
+                        <option value="MANAGER">Manager</option>
+                        <option value="HR">HR</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Sign Up
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="container hidden">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-users fa-2x" style="color: var(--primary);"></i>
+                <h2>HR Portal</h2>
+            </div>
+            <div class="sidebar-menu">
+                <a href="#" class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="menu-item" data-page="employees">
+                    <i class="fas fa-user-friends"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="#" class="menu-item" data-page="tasks">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="#" class="menu-item" data-page="attendance">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="#" class="menu-item" data-page="leaves">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Leaves</span>
+                </a>
+                <a href="#" class="menu-item" data-page="shifts">
+                    <i class="fas fa-clock"></i>
+                    <span>Shifts</span>
+                </a>
+                <a href="#" class="menu-item" data-page="feedback">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>Feedback</span>
+                </a>
+                <a href="#" class="menu-item" data-page="reviews">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reviews</span>
+                </a>
+                <a href="#" class="menu-item" data-page="documents">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="#" class="menu-item" data-page="admin">
+                    <i class="fas fa-cog"></i>
+                    <span>Admin</span>
+                </a>
+                <a href="#" class="menu-item" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <h1>HR Management System</h1>
+                </div>
+                <div class="header-right">
+                    <div class="notification-icon" id="notification-icon">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </div>
+                    <div class="user-profile">
+                        <div class="user-avatar" id="user-avatar">JS</div>
+                        <div class="user-info">
+                            <div class="user-name" id="user-name">Jane Smith</div>
+                            <div class="user-role" id="user-role">HR Manager</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Page -->
+                <div class="page active" id="dashboard">
+                    <div class="page-header">
+                        <h2>Dashboard</h2>
+                        <p>Welcome back, <span id="dashboard-user-name">Jane</span>! Here's an overview of your team.</p>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <!-- Attendance Card -->
+                        <div class="dashboard-stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-card-title">Attendance Today</div>
+                                <div class="stat-card-icon">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                            </div>
+                            <div class="attendance-stats">
+                                <div class="stat-item stat-present">
+                                    <span class="stat-value" id="present-count">24</span>
+                                    <span class="stat-label">Present</span>
+                                </div>
+                                <div class="stat-item stat-absent">
+                                    <span class="stat-value" id="absent-count">3</span>
+                                    <span class="stat-label">Absent</span>
+                                </div>
+                                <div class="stat-item stat-leave">
+                                    <span class="stat-value" id="leave-count">2</span>
+                                    <span class="stat-label">On Leave</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline" style="margin-top: 20px; width: 100%;" id="view-attendance">
+                                <i class="fas fa-calendar"></i> View Attendance Report
+                            </button>
+                        </div>
+
+                        <!-- Upcoming Reviews Card -->
+                        <div class="dashboard-stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-card-title">Upcoming Reviews</div>
+                                <div class="stat-card-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <div class="upcoming-reviews-list" id="upcoming-reviews-list">
+                                <!-- Reviews will be dynamically added -->
+                            </div>
+                            <button class="btn btn-primary" style="margin-top: 20px; width: 100%;" id="start-review-cycle">
+                                <i class="fas fa-play-circle"></i> Start Review Cycle
+                            </button>
+                        </div>
+
+                        <!-- Team Performance Card -->
+                        <div class="dashboard-stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-card-title">Team Performance</div>
+                                <div class="stat-card-icon">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                            </div>
+                            <div class="performance-metric">
+                                <div class="performance-value" id="team-performance-value">78%</div>
+                                <div class="performance-label">Overall Performance</div>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Task Completion</span>
+                                    <span id="team-task-completion">65%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="team-task-bar" style="width: 65%"></div>
+                                </div>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Employee Engagement</span>
+                                    <span id="team-engagement">82%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="team-engagement-bar" style="width: 82%"></div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="margin-top: 20px; width: 100%;" id="view-analytics">
+                                <i class="fas fa-chart-line"></i> View Detailed Analytics
+                            </button>
+                        </div>
+
+                        <!-- Daily Task Completion -->
+                        <div class="dashboard-stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-card-title">Daily Task Completion</div>
+                                <div class="stat-card-icon">
+                                    <i class="fas fa-tasks"></i>
+                                </div>
+                            </div>
+                            <div class="water-ball-container">
+                                <div class="water-ball">
+                                    <div class="water" id="water-level" style="height: 45%"></div>
+                                    <div class="water-ball-label" id="daily-tasks-count">9/20</div>
+                                </div>
+                            </div>
+                            <p style="text-align: center; color: var(--gray); margin-top: 10px;">
+                                Tasks completed today
+                            </p>
+                        </div>
+
+                        <!-- Recent Feedback -->
+                        <div class="dashboard-stat-card">
+                            <div class="stat-card-header">
+                                <div class="stat-card-title">Recent Feedback</div>
+                                <div class="stat-card-icon">
+                                    <i class="fas fa-comment-dots"></i>
+                                </div>
+                            </div>
+                            <div id="recent-feedback-list">
+                                <!-- Feedback items will be dynamically added here -->
+                            </div>
+                            <button class="btn btn-outline" style="margin-top: 20px; width: 100%;" id="view-all-feedback">
+                                <i class="fas fa-comment-dots"></i> View All Feedback
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Directory Page -->
+                <div class="page" id="employees">
+                    <div class="page-header">
+                        <h2>Employee Directory</h2>
+                        <p>Interactive organizational chart showing hierarchy and reporting structure.</p>
+                    </div>
+
+                    <div class="search-container">
+                        <input type="text" id="employee-search" placeholder="Search employees by name, role, or department...">
+                        <button class="btn btn-primary" id="search-employees">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        <button class="btn btn-success" id="add-employee-btn">
+                            <i class="fas fa-plus"></i> Add Employee
+                        </button>
+                    </div>
+
+                    <div class="filter-container">
+                        <div class="filter-group">
+                            <label>Department</label>
+                            <select id="filter-department">
+                                <option value="">All Departments</option>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Product">Product</option>
+                                <option value="Design">Design</option>
+                                <option value="HR">Human Resources</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Analytics">Analytics</option>
+                                <option value="Executive">Executive</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Role</label>
+                            <select id="filter-role">
+                                <option value="">All Roles</option>
+                                <option value="CEO">CEO</option>
+                                <option value="Project Manager">Project Manager</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Team Leader">Team Leader</option>
+                                <option value="Software Engineer">Software Engineer</option>
+                                <option value="HR Manager">HR Manager</option>
+                                <option value="Marketing Specialist">Marketing Specialist</option>
+                                <option value="Data Analyst">Data Analyst</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Org Chart Container -->
+                    <div class="org-chart-container">
+                        <div class="org-chart-header">
+                            <div>
+                                <h3 style="margin: 0;">Organizational Chart</h3>
+                                <p style="font-size: 0.9rem; color: var(--gray); margin: 5px 0 0 0;">Click nodes to edit, right-click for menu</p>
+                            </div>
+                            <div class="org-chart-controls">
+                                <button class="btn btn-outline" id="zoom-in">
+                                    <i class="fas fa-search-plus"></i>
+                                </button>
+                                <button class="btn btn-outline" id="zoom-out">
+                                    <i class="fas fa-search-minus"></i>
+                                </button>
+                                <button class="btn btn-outline" id="reset-view">
+                                    <i class="fas fa-expand-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="org-chart-canvas" id="employee-hierarchy"></div>
+                    </div>
+                </div>
+
+                <!-- Task Management Page -->
+                <div class="page" id="tasks">
+                    <div class="page-header">
+                        <h2>Task Management</h2>
+                        <p>Create and track OKRs (Objectives and Key Results) for your team.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Create New Task</div>
+                        </div>
+                        <form id="create-task-form">
+                            <div class="form-group">
+                                <label for="task-title">Task Title</label>
+                                <input type="text" id="task-title" placeholder="Enter task title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-description">Description</label>
+                                <textarea id="task-description" rows="3" placeholder="Describe the task"></textarea>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="task-metric">Key Metric</label>
+                                    <input type="text" id="task-metric" placeholder="e.g., Increase sales by 15%" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-deadline">Deadline</label>
+                                    <input type="date" id="task-deadline" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-assignee">Assign To</label>
+                                <select id="task-assignee" required>
+                                    <option value="">Select employee</option>
+                                    <!-- Employee options will be dynamically added -->
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Create Task
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Current Tasks</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="tasks-table">
+                                <thead>
+                                    <tr>
+                                        <th>Task Title</th>
+                                        <th>Metric</th>
+                                        <th>Assignee</th>
+                                        <th>Deadline</th>
+                                        <th>Progress</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tasks-table-body">
+                                    <!-- Tasks will be dynamically added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Page -->
+                <div class="page" id="attendance">
+                    <div class="page-header">
+                        <h2>Attendance Management</h2>
+                        <p>Track employee attendance and time records.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Today's Attendance</div>
+                            <button class="btn btn-primary" id="clock-in-out">
+                                <i class="fas fa-clock"></i> Clock In
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="attendance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th>Total Hours</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendance-table-body">
+                                    <!-- Attendance records will be dynamically added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Monthly Attendance Report</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="attendance-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave Management Page -->
+                <div class="page" id="leaves">
+                    <div class="page-header">
+                        <h2>Leave Management</h2>
+                        <p>Manage employee leave requests and approvals.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Apply for Leave</div>
+                        </div>
+                        <form id="apply-leave-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="leave-type">Leave Type</label>
+                                    <select id="leave-type" required>
+                                        <option value="">Select Leave Type</option>
+                                        <option value="vacation">Vacation</option>
+                                        <option value="sick">Sick Leave</option>
+                                        <option value="personal">Personal</option>
+                                        <option value="maternity">Maternity</option>
+                                        <option value="paternity">Paternity</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="leave-days">Number of Days</label>
+                                    <input type="number" id="leave-days" min="1" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="leave-start">Start Date</label>
+                                    <input type="date" id="leave-start" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="leave-end">End Date</label>
+                                    <input type="date" id="leave-end" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="leave-reason">Reason</label>
+                                <textarea id="leave-reason" rows="3" placeholder="Reason for leave" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Submit Leave Request
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Leave Calendar</div>
+                        </div>
+                        <div class="leave-calendar" id="leave-calendar">
+                            <!-- Leave calendar will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Pending Approvals</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="pending-leaves-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Leave Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-leaves-body">
+                                    <!-- Pending leaves will be dynamically added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shift Scheduling Page -->
+                <div class="page" id="shifts">
+                    <div class="page-header">
+                        <h2>Shift Scheduling</h2>
+                        <p>Create and manage employee shift schedules.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Create New Shift</div>
+                        </div>
+                        <form id="create-shift-form">
+                            <div class="form-group">
+                                <label for="shift-name">Shift Name</label>
+                                <input type="text" id="shift-name" placeholder="e.g., Morning Shift" required>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="shift-start">Start Time</label>
+                                    <input type="time" id="shift-start" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="shift-end">End Time</label>
+                                    <input type="time" id="shift-end" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="shift-employees">Assign Employees</label>
+                                <select id="shift-employees" multiple>
+                                    <!-- Employee options will be dynamically added -->
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Create Shift
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Current Shifts</div>
+                        </div>
+                        <div class="shift-schedule" id="shift-schedule">
+                            <!-- Shift cards will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Page -->
+                <div class="page" id="feedback">
+                    <div class="page-header">
+                        <h2>Feedback</h2>
+                        <p>Give and receive constructive feedback to help team members grow.</p>
+                    </div>
+
+                    <div class="tabs">
+                        <div class="tab active" data-tab="give">Give Feedback</div>
+                        <div class="tab" data-tab="received">Received Feedback</div>
+                        <div class="tab" data-tab="given">Given Feedback</div>
+                    </div>
+
+                    <div class="tab-content active" id="give-tab">
+                        <div class="card">
+                            <form id="give-feedback-form">
+                                <div class="form-group">
+                                    <label for="feedback-recipient">Recipient</label>
+                                    <select id="feedback-recipient" required>
+                                        <option value="">Select employee</option>
+                                        <!-- Employee options will be dynamically added -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="feedback-type">Feedback Type</label>
+                                    <select id="feedback-type" required>
+                                        <option value="positive">Positive</option>
+                                        <option value="constructive">Constructive</option>
+                                        <option value="developmental">Developmental</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="feedback-rating">Rating (1-5)</label>
+                                    <input type="number" id="feedback-rating" min="1" max="5" placeholder="Optional">
+                                </div>
+                                <div class="form-group">
+                                    <label for="feedback-message">Feedback Message</label>
+                                    <textarea id="feedback-message" rows="5" placeholder="Be specific and constructive in your feedback..." required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="anonymous-feedback">
+                                        Send anonymously
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Submit Feedback
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="received-tab">
+                        <div class="card" id="received-feedback-list">
+                            <!-- Received feedback will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="given-tab">
+                        <div class="card" id="given-feedback-list">
+                            <!-- Given feedback will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Review Page -->
+                <div class="page" id="reviews">
+                    <div class="page-header">
+                        <h2>Performance Reviews</h2>
+                        <p>Conduct and track performance reviews for your team members.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Start New Review</div>
+                        </div>
+                        <form id="start-review-form">
+                            <div class="form-group">
+                                <label for="review-employee">Employee</label>
+                                <select id="review-employee" required>
+                                    <option value="">Select employee</option>
+                                    <!-- Employee options will be dynamically added -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="review-period">Review Period</label>
+                                <select id="review-period" required>
+                                    <option value="q3-2023">Q3 2023 (Jul - Sep)</option>
+                                    <option value="q4-2023">Q4 2023 (Oct - Dec)</option>
+                                    <option value="annual-2023">Annual 2023</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-play-circle"></i> Start Review
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Performance Review Form</div>
+                        </div>
+                        <form id="review-form">
+                            <div class="form-group">
+                                <label>Quality of Work</label>
+                                <input type="range" min="1" max="5" value="4" class="rating-slider" id="quality-work">
+                                <div class="rating-labels">
+                                    <span>1 - Needs Improvement</span>
+                                    <span>5 - Excellent</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Communication Skills</label>
+                                <input type="range" min="1" max="5" value="3" class="rating-slider" id="communication">
+                                <div class="rating-labels">
+                                    <span>1 - Needs Improvement</span>
+                                    <span>5 - Excellent</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Team Collaboration</label>
+                                <input type="range" min="1" max="5" value="5" class="rating-slider" id="collaboration">
+                                <div class="rating-labels">
+                                    <span>1 - Needs Improvement</span>
+                                    <span>5 - Excellent</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Problem Solving</label>
+                                <input type="range" min="1" max="5" value="4" class="rating-slider" id="problem-solving">
+                                <div class="rating-labels">
+                                    <span>1 - Needs Improvement</span>
+                                    <span>5 - Excellent</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="strengths">Strengths</label>
+                                <textarea id="strengths" rows="3" placeholder="What are the employee's key strengths?"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="improvements">Areas for Improvement</label>
+                                <textarea id="improvements" rows="3" placeholder="What areas could the employee develop further?"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="future-tasks">Future Tasks</label>
+                                <textarea id="future-tasks" rows="3" placeholder="What are the tasks for the next review period?"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check-circle"></i> Complete Review
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Review History</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="reviews-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Review Period</th>
+                                        <th>Status</th>
+                                        <th>Overall Rating</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reviews-table-body">
+                                    <!-- Reviews will be dynamically added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Management Page -->
+                <div class="page" id="documents">
+                    <div class="page-header">
+                        <h2>Document Management</h2>
+                        <p>Upload and manage employee documents securely.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Upload Document</div>
+                        </div>
+                        <form id="upload-document-form">
+                            <div class="form-group">
+                                <label for="document-employee">Employee</label>
+                                <select id="document-employee" required>
+                                    <option value="">Select employee</option>
+                                    <!-- Employee options will be dynamically added -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="document-type">Document Type</label>
+                                <select id="document-type" required>
+                                    <option value="">Select Document Type</option>
+                                    <option value="contract">Employment Contract</option>
+                                    <option value="id">ID Proof</option>
+                                    <option value="certificate">Educational Certificate</option>
+                                    <option value="resume">Resume</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="document-file">Upload File</label>
+                                <input type="file" id="document-file" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Upload Document
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Document Library</div>
+                        </div>
+                        <div class="document-list" id="document-list">
+                            <!-- Document cards will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Console Page -->
+                <div class="page" id="admin">
+                    <div class="page-header">
+                        <h2>Admin Console</h2>
+                        <p>Manage users, review cycles, and system configuration.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">User Management</div>
+                            <button class="btn btn-primary" id="admin-add-user">
+                                <i class="fas fa-plus"></i> Add User
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="admin-users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-table-body">
+                                    <!-- Users will be dynamically added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Reports & Analytics</div>
+                        </div>
+                        <div class="reports-grid">
+                            <div class="report-card">
+                                <h3>Performance Summary</h3>
+                                <p>Export performance data for all employees</p>
+                                <button class="btn btn-outline" id="export-performance">
+                                    <i class="fas fa-download"></i> Download CSV
+                                </button>
+                            </div>
+                            <div class="report-card">
+                                <h3>Feedback Analysis</h3>
+                                <p>Analyze feedback trends across the organization</p>
+                                <button class="btn btn-outline" id="export-feedback">
+                                    <i class="fas fa-download"></i> Download Report
+                                </button>
+                            </div>
+                            <div class="report-card">
+                                <h3>Review Analytics</h3>
+                                <p>Performance review statistics and insights</p>
+                                <button class="btn btn-outline" id="export-reviews">
+                                    <i class="fas fa-download"></i> Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div class="modal" id="add-employee-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Employee</h3>
+                <button class="modal-close" id="close-employee-modal">&times;</button>
+            </div>
+            <form id="add-employee-form">
+                <div class="form-group">
+                    <label for="employee-first-name">First Name</label>
+                    <input type="text" id="employee-first-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="employee-last-name">Last Name</label>
+                    <input type="text" id="employee-last-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="employee-email">Email</label>
+                    <input type="email" id="employee-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="employee-role">Role</label>
+                    <select id="employee-role" required>
+                        <option value="">Select Role</option>
+                        <option value="CEO">CEO</option>
+                        <option value="Project Manager">Project Manager</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Team Leader">Team Leader</option>
+                        <option value="Software Engineer">Software Engineer</option>
+                        <option value="HR Manager">HR Manager</option>
+                        <option value="Marketing Specialist">Marketing Specialist</option>
+                        <option value="Data Analyst">Data Analyst</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="employee-department">Department</label>
+                    <select id="employee-department" required>
+                        <option value="">Select Department</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Product">Product</option>
+                        <option value="Design">Design</option>
+                        <option value="HR">Human Resources</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Analytics">Analytics</option>
+                        <option value="Executive">Executive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="employee-position">Position</label>
+                    <input type="text" id="employee-position" required>
+                </div>
+                <div class="form-group">
+                    <label for="employee-manager">Manager</label>
+                    <select id="employee-manager">
+                        <option value="">No Manager (Top Level)</option>
+                        <!-- Manager options will be dynamically added -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="employee-hire-date">Hire Date</label>
+                    <input type="date" id="employee-hire-date" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Employee</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Employee Modal -->
+    <div class="modal" id="edit-employee-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Employee</h3>
+                <button class="modal-close" id="close-edit-employee-modal">&times;</button>
+            </div>
+            <form id="edit-employee-form">
+                <input type="hidden" id="edit-employee-id">
+                <div class="form-group">
+                    <label for="edit-employee-first-name">First Name</label>
+                    <input type="text" id="edit-employee-first-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-last-name">Last Name</label>
+                    <input type="text" id="edit-employee-last-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-email">Email</label>
+                    <input type="email" id="edit-employee-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-role">Role</label>
+                    <select id="edit-employee-role" required>
+                        <option value="">Select Role</option>
+                        <option value="CEO">CEO</option>
+                        <option value="Project Manager">Project Manager</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Team Leader">Team Leader</option>
+                        <option value="Software Engineer">Software Engineer</option>
+                        <option value="HR Manager">HR Manager</option>
+                        <option value="Marketing Specialist">Marketing Specialist</option>
+                        <option value="Data Analyst">Data Analyst</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-department">Department</label>
+                    <select id="edit-employee-department" required>
+                        <option value="">Select Department</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Product">Product</option>
+                        <option value="Design">Design</option>
+                        <option value="HR">Human Resources</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Analytics">Analytics</option>
+                        <option value="Executive">Executive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-position">Position</label>
+                    <input type="text" id="edit-employee-position" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-manager">Manager</label>
+                    <select id="edit-employee-manager">
+                        <option value="">No Manager (Top Level)</option>
+                        <!-- Manager options will be dynamically added -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-employee-performance">Performance Index</label>
+                    <input type="number" id="edit-employee-performance" min="0" max="100" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Employee</button>
+                <button type="button" class="btn btn-danger" id="delete-employee-btn" style="margin-left: 10px;">Delete Employee</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Task Progress Modal -->
+    <div class="modal" id="task-progress-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Update Task Progress</h3>
+                <button class="modal-close" id="close-task-progress-modal">&times;</button>
+            </div>
+            <form id="update-task-progress-form">
+                <div class="form-group">
+                    <label for="progress-percentage">Progress Percentage</label>
+                    <input type="number" id="progress-percentage" min="0" max="100" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Progress</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Node Context Menu -->
+    <div class="node-context-menu" id="node-context-menu">
+        <div class="context-menu-item" id="context-edit">
+            <i class="fas fa-edit"></i> Edit Employee
+        </div>
+        <div class="context-menu-item" id="context-add-report">
+            <i class="fas fa-user-plus"></i> Add Report
+        </div>
+        <div class="context-menu-item" id="context-view-details">
+            <i class="fas fa-eye"></i> View Details
+        </div>
+        <div class="context-menu-item" id="context-remove-report">
+            <i class="fas fa-user-minus"></i> Remove from Manager
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div class="analytics-modal" id="analytics-modal">
+        <div class="analytics-content">
+            <div class="modal-header">
+                <h3>Team Performance Analytics</h3>
+                <button class="modal-close" id="close-analytics-modal">&times;</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="department-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="feedback-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Global variables
+        let cy = null;
+        let selectedNodeId = null;
+        let dataManager = null;
+        let uiManager = null;
+        let charts = {};
+
+        // Data Storage and Management
+        class HRDataManager {
+            constructor() {
+                this.currentUser = null;
+                this.accessToken = null;
+                this.refreshToken = null;
+                this.initializeData();
+            }
+
+            initializeData() {
+                // Initialize default data if not exists
+                if (!localStorage.getItem('employees')) {
+                    const defaultEmployees = [
+                        {
+                            id: 1,
+                            firstName: 'John',
+                            lastName: 'Doe',
+                            email: 'john.doe@company.com',
+                            role: 'CEO',
+                            department: 'Executive',
+                            position: 'Chief Executive Officer',
+                            hireDate: '2020-01-15',
+                            performanceIndex: 95,
+                            isActive: true,
+                            managerId: null
+                        },
+                        {
+                            id: 2,
+                            firstName: 'Sarah',
+                            lastName: 'Johnson',
+                            email: 'sarah.j@company.com',
+                            role: 'Project Manager',
+                            department: 'Product',
+                            position: 'Product Lead',
+                            hireDate: '2021-08-20',
+                            performanceIndex: 92,
+                            isActive: true,
+                            managerId: 1
+                        },
+                        {
+                            id: 3,
+                            firstName: 'Michael',
+                            lastName: 'Brown',
+                            email: 'michael.b@company.com',
+                            role: 'Manager',
+                            department: 'Engineering',
+                            position: 'Engineering Manager',
+                            hireDate: '2022-03-10',
+                            performanceIndex: 88,
+                            isActive: true,
+                            managerId: 2
+                        },
+                        {
+                            id: 4,
+                            firstName: 'Emily',
+                            lastName: 'Wilson',
+                            email: 'emily.w@company.com',
+                            role: 'Team Leader',
+                            department: 'Engineering',
+                            position: 'Senior Tech Lead',
+                            hireDate: '2021-11-05',
+                            performanceIndex: 90,
+                            isActive: true,
+                            managerId: 3
+                        },
+                        {
+                            id: 5,
+                            firstName: 'Robert',
+                            lastName: 'Davis',
+                            email: 'robert.d@company.com',
+                            role: 'Software Engineer',
+                            department: 'Engineering',
+                            position: 'Senior Developer',
+                            hireDate: '2022-06-15',
+                            performanceIndex: 85,
+                            isActive: true,
+                            managerId: 4
+                        },
+                        {
+                            id: 6,
+                            firstName: 'Lisa',
+                            lastName: 'Thompson',
+                            email: 'lisa.t@company.com',
+                            role: 'HR Manager',
+                            department: 'HR',
+                            position: 'HR Specialist',
+                            hireDate: '2021-09-12',
+                            performanceIndex: 90,
+                            isActive: true,
+                            managerId: 1
+                        }
+                    ];
+                    this.saveEmployees(defaultEmployees);
+                }
+
+                if (!localStorage.getItem('tasks')) {
+                    const defaultTasks = [
+                        {
+                            id: 1,
+                            title: 'Q4 Marketing Campaign',
+                            description: 'Launch new marketing campaign for holiday season',
+                            metric: 'Increase sales by 15%',
+                            deadline: '2023-12-15',
+                            assigneeId: 2,
+                            progressPercentage: 65,
+                            status: 'In Progress',
+                            createdAt: '2023-10-01'
+                        },
+                        {
+                            id: 2,
+                            title: 'Website Redesign',
+                            description: 'Redesign company website with modern UI',
+                            metric: 'Improve user engagement by 25%',
+                            deadline: '2023-11-30',
+                            assigneeId: 5,
+                            progressPercentage: 40,
+                            status: 'In Progress',
+                            createdAt: '2023-09-15'
+                        }
+                    ];
+                    this.saveTasks(defaultTasks);
+                }
+
+                if (!localStorage.getItem('feedback')) {
+                    const defaultFeedback = [
+                        {
+                            id: 1,
+                            recipientId: 5,
+                            giverId: 3,
+                            type: 'positive',
+                            rating: 5,
+                            message: 'Great work on the recent project! Your attention to detail was impressive.',
+                            isAnonymous: false,
+                            createdAt: '2023-10-15'
+                        },
+                        {
+                            id: 2,
+                            recipientId: 2,
+                            giverId: 1,
+                            type: 'constructive',
+                            rating: 4,
+                            message: 'Good leadership on the team. Consider more frequent check-ins with junior members.',
+                            isAnonymous: false,
+                            createdAt: '2023-10-10'
+                        }
+                    ];
+                    this.saveFeedback(defaultFeedback);
+                }
+
+                if (!localStorage.getItem('reviews')) {
+                    this.saveReviews([]);
+                }
+
+                if (!localStorage.getItem('attendance')) {
+                    const today = new Date().toISOString().split('T')[0];
+                    const defaultAttendance = [
+                        {
+                            id: 1,
+                            employeeId: 1,
+                            date: today,
+                            status: 'present',
+                            clockIn: '09:00',
+                            clockOut: '17:00',
+                            totalHours: 8
+                        },
+                        {
+                            id: 2,
+                            employeeId: 2,
+                            date: today,
+                            status: 'present',
+                            clockIn: '08:45',
+                            clockOut: '17:30',
+                            totalHours: 8.75
+                        },
+                        {
+                            id: 3,
+                            employeeId: 3,
+                            date: today,
+                            status: 'leave',
+                            clockIn: null,
+                            clockOut: null,
+                            totalHours: 0
+                        },
+                        {
+                            id: 4,
+                            employeeId: 4,
+                            date: today,
+                            status: 'present',
+                            clockIn: '09:15',
+                            clockOut: '18:00',
+                            totalHours: 8.75
+                        },
+                        {
+                            id: 5,
+                            employeeId: 5,
+                            date: today,
+                            status: 'present',
+                            clockIn: '08:30',
+                            clockOut: '17:15',
+                            totalHours: 8.75
+                        },
+                        {
+                            id: 6,
+                            employeeId: 6,
+                            date: today,
+                            status: 'absent',
+                            clockIn: null,
+                            clockOut: null,
+                            totalHours: 0
+                        }
+                    ];
+                    this.saveAttendance(defaultAttendance);
+                }
+
+                if (!localStorage.getItem('leaves')) {
+                    const defaultLeaves = [
+                        {
+                            id: 1,
+                            employeeId: 3,
+                            type: 'vacation',
+                            startDate: '2023-10-20',
+                            endDate: '2023-10-27',
+                            days: 5,
+                            reason: 'Family vacation',
+                            status: 'Approved',
+                            createdAt: '2023-10-01'
+                        },
+                        {
+                            id: 2,
+                            employeeId: 6,
+                            type: 'sick',
+                            startDate: '2023-10-25',
+                            endDate: '2023-10-26',
+                            days: 2,
+                            reason: 'Medical appointment',
+                            status: 'Pending',
+                            createdAt: '2023-10-20'
+                        }
+                    ];
+                    this.saveLeaves(defaultLeaves);
+                }
+
+                if (!localStorage.getItem('shifts')) {
+                    this.saveShifts([]);
+                }
+
+                if (!localStorage.getItem('documents')) {
+                    this.saveDocuments([]);
+                }
+
+                // Initialize current user from localStorage or set default
+                this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || {
+                    id: 100,
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    email: 'jane.smith@company.com',
+                    role: 'HR Manager',
+                    department: 'HR',
+                    position: 'HR Manager'
+                };
+
+                // Initialize tokens
+                this.accessToken = localStorage.getItem('accessToken');
+                this.refreshToken = localStorage.getItem('refreshToken');
+            }
+
+            // Authentication methods
+            async signIn(email, password) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        if (email && password) {
+                            this.currentUser = {
+                                id: 100,
+                                firstName: 'Jane',
+                                lastName: 'Smith',
+                                email: email,
+                                role: 'HR Manager',
+                                department: 'HR',
+                                position: 'HR Manager'
+                            };
+                            this.accessToken = 'test_token';
+                            this.refreshToken = 'refresh_token_here';
+                            
+                            localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                            localStorage.setItem('accessToken', this.accessToken);
+                            localStorage.setItem('refreshToken', this.refreshToken);
+                            
+                            resolve({ success: true, user: this.currentUser });
+                        } else {
+                            resolve({ success: false, error: 'Invalid credentials' });
+                        }
+                    }, 500);
+                });
+            }
+
+            logout() {
+                this.currentUser = null;
+                this.accessToken = null;
+                this.refreshToken = null;
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+            }
+
+            // Employee methods
+            getEmployees() {
+                return JSON.parse(localStorage.getItem('employees')) || [];
+            }
+
+            saveEmployees(employees) {
+                localStorage.setItem('employees', JSON.stringify(employees));
+            }
+
+            addEmployee(employee) {
+                const employees = this.getEmployees();
+                const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;
+                employee.id = newId;
+                employee.isActive = true;
+                employee.performanceIndex = employee.performanceIndex || 75;
+                employee.managerId = employee.managerId ? parseInt(employee.managerId) : null;
+                employees.push(employee);
+                this.saveEmployees(employees);
+                return employee;
+            }
+
+            updateEmployee(id, updates) {
+                const employees = this.getEmployees();
+                const index = employees.findIndex(e => e.id === id);
+                if (index !== -1) {
+                    if (updates.managerId !== undefined) {
+                        updates.managerId = updates.managerId ? parseInt(updates.managerId) : null;
+                    }
+                    employees[index] = { ...employees[index], ...updates };
+                    this.saveEmployees(employees);
+                    return employees[index];
+                }
+                return null;
+            }
+
+            deleteEmployee(id) {
+                const employees = this.getEmployees();
+                const updatedEmployees = employees.filter(e => e.id !== id);
+                this.saveEmployees(updatedEmployees);
+                return true;
+            }
+
+            getEmployeeById(id) {
+                const employees = this.getEmployees();
+                return employees.find(e => e.id === id);
+            }
+
+            // Task methods
+            getTasks() {
+                return JSON.parse(localStorage.getItem('tasks')) || [];
+            }
+
+            saveTasks(tasks) {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+
+            addTask(task) {
+                const tasks = this.getTasks();
+                const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+                task.id = newId;
+                task.createdAt = new Date().toISOString().split('T')[0];
+                task.progressPercentage = 0;
+                task.status = 'In Progress';
+                tasks.push(task);
+                this.saveTasks(tasks);
+                return task;
+            }
+
+            updateTaskProgress(id, progress) {
+                const tasks = this.getTasks();
+                const task = tasks.find(t => t.id === id);
+                if (task) {
+                    task.progressPercentage = progress;
+                    if (progress >= 100) {
+                        task.status = 'Completed';
+                    }
+                    this.saveTasks(tasks);
+                    return task;
+                }
+                return null;
+            }
+
+            // Feedback methods
+            getFeedback() {
+                return JSON.parse(localStorage.getItem('feedback')) || [];
+            }
+
+            saveFeedback(feedback) {
+                localStorage.setItem('feedback', JSON.stringify(feedback));
+            }
+
+            addFeedback(feedback) {
+                const feedbacks = this.getFeedback();
+                const newId = feedbacks.length > 0 ? Math.max(...feedbacks.map(f => f.id)) + 1 : 1;
+                feedback.id = newId;
+                feedback.createdAt = new Date().toISOString().split('T')[0];
+                feedbacks.push(feedback);
+                this.saveFeedback(feedbacks);
+                return feedback;
+            }
+
+            // Review methods
+            getReviews() {
+                return JSON.parse(localStorage.getItem('reviews')) || [];
+            }
+
+            saveReviews(reviews) {
+                localStorage.setItem('reviews', JSON.stringify(reviews));
+            }
+
+            addReview(review) {
+                const reviews = this.getReviews();
+                const newId = reviews.length > 0 ? Math.max(...reviews.map(r => r.id)) + 1 : 1;
+                review.id = newId;
+                review.createdAt = new Date().toISOString().split('T')[0];
+                review.status = 'Completed';
+                reviews.push(review);
+                this.saveReviews(reviews);
+                return review;
+            }
+
+            // Attendance methods
+            getAttendance() {
+                return JSON.parse(localStorage.getItem('attendance')) || [];
+            }
+
+            saveAttendance(attendance) {
+                localStorage.setItem('attendance', JSON.stringify(attendance));
+            }
+
+            addAttendance(record) {
+                const attendance = this.getAttendance();
+                const newId = attendance.length > 0 ? Math.max(...attendance.map(a => a.id)) + 1 : 1;
+                record.id = newId;
+                record.date = new Date().toISOString().split('T')[0];
+                attendance.push(record);
+                this.saveAttendance(attendance);
+                return record;
+            }
+
+            getTodaysAttendance() {
+                const attendance = this.getAttendance();
+                const today = new Date().toISOString().split('T')[0];
+                return attendance.filter(a => a.date === today);
+            }
+
+            // Leave methods
+            getLeaves() {
+                return JSON.parse(localStorage.getItem('leaves')) || [];
+            }
+
+            saveLeaves(leaves) {
+                localStorage.setItem('leaves', JSON.stringify(leaves));
+            }
+
+            addLeave(leave) {
+                const leaves = this.getLeaves();
+                const newId = leaves.length > 0 ? Math.max(...leaves.map(l => l.id)) + 1 : 1;
+                leave.id = newId;
+                leave.createdAt = new Date().toISOString().split('T')[0];
+                leave.status = 'Pending';
+                leaves.push(leave);
+                this.saveLeaves(leaves);
+                return leave;
+            }
+
+            updateLeaveStatus(id, status) {
+                const leaves = this.getLeaves();
+                const leave = leaves.find(l => l.id === id);
+                if (leave) {
+                    leave.status = status;
+                    this.saveLeaves(leaves);
+                    return leave;
+                }
+                return null;
+            }
+
+            // Shift methods
+            getShifts() {
+                return JSON.parse(localStorage.getItem('shifts')) || [];
+            }
+
+            saveShifts(shifts) {
+                localStorage.setItem('shifts', JSON.stringify(shifts));
+            }
+
+            addShift(shift) {
+                const shifts = this.getShifts();
+                const newId = shifts.length > 0 ? Math.max(...shifts.map(s => s.id)) + 1 : 1;
+                shift.id = newId;
+                shift.createdAt = new Date().toISOString().split('T')[0];
+                shifts.push(shift);
+                this.saveShifts(shifts);
+                return shift;
+            }
+
+            // Document methods
+            getDocuments() {
+                return JSON.parse(localStorage.getItem('documents')) || [];
+            }
+
+            saveDocuments(documents) {
+                localStorage.setItem('documents', JSON.stringify(documents));
+            }
+
+            addDocument(document) {
+                const documents = this.getDocuments();
+                const newId = documents.length > 0 ? Math.max(...documents.map(d => d.id)) + 1 : 1;
+                document.id = newId;
+                document.uploadedAt = new Date().toISOString().split('T')[0];
+                documents.push(document);
+                this.saveDocuments(documents);
+                return document;
+            }
+
+            // Analytics methods
+            getTeamPerformance() {
+                const employees = this.getEmployees();
+                if (employees.length === 0) return 0;
+                const totalPerformance = employees.reduce((sum, emp) => sum + emp.performanceIndex, 0);
+                return Math.round(totalPerformance / employees.length);
+            }
+
+            getTaskCompletionRate() {
+                const tasks = this.getTasks();
+                if (tasks.length === 0) return 0;
+                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
+                return Math.round((completedTasks / tasks.length) * 100);
+            }
+
+            getAttendanceStats() {
+                const todayAttendance = this.getTodaysAttendance();
+                return {
+                    present: todayAttendance.filter(a => a.status === 'present').length,
+                    absent: todayAttendance.filter(a => a.status === 'absent').length,
+                    leave: todayAttendance.filter(a => a.status === 'leave').length
+                };
+            }
+
+            getRecentFeedback(limit = 3) {
+                const feedback = this.getFeedback();
+                return feedback
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, limit);
+            }
+
+            getUpcomingReviews() {
+                const reviews = this.getReviews();
+                const upcoming = reviews.filter(r => new Date(r.createdAt) > new Date());
+                return upcoming.slice(0, 3);
+            }
+        }
+
+        // UI Manager
+        class UIManager {
+            constructor(dataManager) {
+                this.dataManager = dataManager;
+                this.currentTaskId = null;
+                this.initializeEventListeners();
+                this.checkAuthStatus();
+            }
+
+            checkAuthStatus() {
+                if (this.dataManager.currentUser && this.dataManager.accessToken) {
+                    this.showMainApp();
+                } else {
+                    this.showAuthPage();
+                }
+            }
+
+            initializeEventListeners() {
+                // Auth event listeners
+                document.querySelectorAll('.auth-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        this.switchAuthTab(tab.getAttribute('data-tab'));
+                    });
+                });
+
+                document.getElementById('signin-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSignIn();
+                });
+
+                document.getElementById('signup-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSignUp();
+                });
+
+                document.getElementById('logout-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.handleLogout();
+                });
+
+                // Page navigation
+                document.querySelectorAll('.menu-item[data-page]').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.navigateToPage(item.getAttribute('data-page'));
+                    });
+                });
+
+                // Tab navigation
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const tabId = tab.getAttribute('data-tab');
+                        this.switchTab(tabId);
+                    });
+                });
+
+                // Employee management
+                document.getElementById('add-employee-btn').addEventListener('click', () => {
+                    this.showAddEmployeeModal();
+                });
+
+                document.getElementById('close-employee-modal').addEventListener('click', () => {
+                    this.hideAddEmployeeModal();
+                });
+
+                document.getElementById('add-employee-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleAddEmployee();
+                });
+
+                // Edit employee modal
+                document.getElementById('close-edit-employee-modal').addEventListener('click', () => {
+                    this.hideEditEmployeeModal();
+                });
+
+                document.getElementById('edit-employee-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleEditEmployee();
+                });
+
+                document.getElementById('delete-employee-btn').addEventListener('click', () => {
+                    this.handleDeleteEmployee();
+                });
+
+                // Context menu
+                document.getElementById('context-edit').addEventListener('click', () => {
+                    this.handleContextEdit();
+                });
+
+                document.getElementById('context-add-report').addEventListener('click', () => {
+                    this.handleContextAddReport();
+                });
+
+                document.getElementById('context-view-details').addEventListener('click', () => {
+                    this.handleContextViewDetails();
+                });
+
+                document.getElementById('context-remove-report').addEventListener('click', () => {
+                    this.handleContextRemoveReport();
+                });
+
+                // Org chart controls
+                document.getElementById('zoom-in').addEventListener('click', () => {
+                    if (cy) cy.zoom(cy.zoom() * 1.2);
+                });
+
+                document.getElementById('zoom-out').addEventListener('click', () => {
+                    if (cy) cy.zoom(cy.zoom() * 0.8);
+                });
+
+                document.getElementById('reset-view').addEventListener('click', () => {
+                    if (cy) cy.fit();
+                });
+
+                // Task management
+                document.getElementById('create-task-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleCreateTask();
+                });
+
+                document.getElementById('close-task-progress-modal').addEventListener('click', () => {
+                    this.hideTaskProgressModal();
+                });
+
+                document.getElementById('update-task-progress-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleUpdateTaskProgress();
+                });
+
+                // Feedback management
+                document.getElementById('give-feedback-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleGiveFeedback();
+                });
+
+                // Review management
+                document.getElementById('start-review-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleStartReview();
+                });
+
+                document.getElementById('review-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleCompleteReview();
+                });
+
+                // Attendance management
+                document.getElementById('clock-in-out').addEventListener('click', () => {
+                    this.handleClockInOut();
+                });
+
+                // Leave management
+                document.getElementById('apply-leave-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleApplyLeave();
+                });
+
+                // Shift management
+                document.getElementById('create-shift-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleCreateShift();
+                });
+
+                // Document management
+                document.getElementById('upload-document-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleUploadDocument();
+                });
+
+                // Quick actions
+                document.getElementById('quick-task').addEventListener('click', () => {
+                    this.navigateToPage('tasks');
+                });
+
+                document.getElementById('quick-feedback').addEventListener('click', () => {
+                    this.navigateToPage('feedback');
+                });
+
+                // Analytics
+                document.getElementById('view-analytics').addEventListener('click', () => {
+                    this.showAnalyticsModal();
+                });
+
+                document.getElementById('close-analytics-modal').addEventListener('click', () => {
+                    this.hideAnalyticsModal();
+                });
+
+                // Review cycle
+                document.getElementById('start-review-cycle').addEventListener('click', () => {
+                    this.startReviewCycle();
+                });
+
+                // View all feedback
+                document.getElementById('view-all-feedback').addEventListener('click', () => {
+                    this.navigateToPage('feedback');
+                    this.switchTab('received');
+                });
+
+                // View attendance report
+                document.getElementById('view-attendance').addEventListener('click', () => {
+                    this.navigateToPage('attendance');
+                });
+
+                // Search and filter with debouncing
+                document.getElementById('employee-search').addEventListener('input', () => {
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(() => {
+                        this.filterOrgChart();
+                    }, 300);
+                });
+
+                document.getElementById('filter-department').addEventListener('change', () => {
+                    this.filterOrgChart();
+                });
+
+                document.getElementById('filter-role').addEventListener('change', () => {
+                    this.filterOrgChart();
+                });
+
+                // Export functionality
+                document.getElementById('export-performance').addEventListener('click', () => {
+                    this.exportPerformanceData();
+                });
+
+                document.getElementById('export-feedback').addEventListener('click', () => {
+                    this.exportFeedbackData();
+                });
+
+                document.getElementById('export-reviews').addEventListener('click', () => {
+                    this.exportReviewData();
+                });
+
+                // Admin add user
+                document.getElementById('admin-add-user').addEventListener('click', () => {
+                    this.showAddEmployeeModal();
+                });
+
+                // Close context menu when clicking outside
+                document.addEventListener('click', (e) => {
+                    const contextMenu = document.getElementById('node-context-menu');
+                    if (contextMenu && !contextMenu.contains(e.target)) {
+                        this.hideContextMenu();
+                    }
+                });
+
+                // Prevent context menu default behavior
+                document.addEventListener('contextmenu', (e) => {
+                    if (e.target.closest('#employee-hierarchy')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            // Auth Methods
+            async handleSignIn() {
+                const email = document.getElementById('signin-email').value;
+                const password = document.getElementById('signin-password').value;
+
+                const result = await this.dataManager.signIn(email, password);
+                if (result.success) {
+                    this.showMainApp();
+                    this.showToast('Successfully signed in!', 'success');
+                } else {
+                    this.showToast(result.error, 'error');
+                }
+            }
+
+            async handleSignUp() {
+                const formData = {
+                    firstName: document.getElementById('signup-name').value.split(' ')[0],
+                    lastName: document.getElementById('signup-name').value.split(' ').slice(1).join(' '),
+                    email: document.getElementById('signup-email').value,
+                    role: document.getElementById('signup-role').value
+                };
+
+                const result = await this.dataManager.signUp(formData);
+                if (result.success) {
+                    this.showMainApp();
+                    this.showToast('Account created successfully!', 'success');
+                } else {
+                    this.showToast('Error creating account', 'error');
+                }
+            }
+
+            handleLogout() {
+                this.dataManager.logout();
+                this.showAuthPage();
+                this.showToast('Successfully logged out', 'success');
+            }
+
+            switchAuthTab(tabId) {
+                document.querySelectorAll('.auth-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+                document.querySelectorAll('.auth-form').forEach(form => {
+                    form.classList.remove('active');
+                });
+                document.getElementById(`${tabId}-form`).classList.add('active');
+            }
+
+            showAuthPage() {
+                document.getElementById('auth-page').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden');
+            }
+
+            showMainApp() {
+                document.getElementById('auth-page').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                this.updateUserInterface();
+                this.loadInitialData();
+            }
+
+            updateUserInterface() {
+                const user = this.dataManager.currentUser;
+                if (user) {
+                    document.getElementById('user-avatar').textContent = 
+                        user.firstName[0] + user.lastName[0];
+                    document.getElementById('user-name').textContent = 
+                        `${user.firstName} ${user.lastName}`;
+                    document.getElementById('user-role').textContent = user.role;
+                    document.getElementById('dashboard-user-name').textContent = user.firstName;
+                }
+            }
+
+            loadInitialData() {
+                this.updateDashboard();
+                this.renderOrgChart();
+                this.populateEmployeeSelects();
+                this.renderTasks();
+                this.renderFeedback();
+                this.renderReviews();
+                this.renderAttendance();
+                this.renderLeaves();
+                this.renderShifts();
+                this.renderDocuments();
+                this.renderAdminUsers();
+            }
+
+            navigateToPage(pageId) {
+                // Update active menu item
+                document.querySelectorAll('.menu-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+
+                // Show selected page
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                document.getElementById(pageId).classList.add('active');
+
+                // Refresh page data
+                if (pageId === 'dashboard') {
+                    this.updateDashboard();
+                } else if (pageId === 'employees') {
+                    this.renderOrgChart();
+                } else if (pageId === 'tasks') {
+                    this.renderTasks();
+                } else if (pageId === 'attendance') {
+                    this.renderAttendance();
+                } else if (pageId === 'leaves') {
+                    this.renderLeaves();
+                } else if (pageId === 'shifts') {
+                    this.renderShifts();
+                } else if (pageId === 'feedback') {
+                    this.renderFeedback();
+                } else if (pageId === 'reviews') {
+                    this.renderReviews();
+                } else if (pageId === 'documents') {
+                    this.renderDocuments();
+                } else if (pageId === 'admin') {
+                    this.renderAdminUsers();
+                }
+            }
+
+            switchTab(tabId) {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            }
+
+            showAddEmployeeModal() {
+                this.populateManagerSelect('employee-manager');
+                document.getElementById('add-employee-modal').classList.add('active');
+            }
+
+            hideAddEmployeeModal() {
+                document.getElementById('add-employee-modal').classList.remove('active');
+                document.getElementById('add-employee-form').reset();
+            }
+
+            showEditEmployeeModal(employeeId) {
+                const employee = this.dataManager.getEmployeeById(employeeId);
+                if (!employee) return;
+
+                document.getElementById('edit-employee-id').value = employee.id;
+                document.getElementById('edit-employee-first-name').value = employee.firstName;
+                document.getElementById('edit-employee-last-name').value = employee.lastName;
+                document.getElementById('edit-employee-email').value = employee.email;
+                document.getElementById('edit-employee-role').value = employee.role;
+                document.getElementById('edit-employee-department').value = employee.department;
+                document.getElementById('edit-employee-position').value = employee.position;
+                document.getElementById('edit-employee-performance').value = employee.performanceIndex;
+                
+                this.populateManagerSelect('edit-employee-manager', employee.id);
+                document.getElementById('edit-employee-manager').value = employee.managerId || '';
+
+                document.getElementById('edit-employee-modal').classList.add('active');
+            }
+
+            hideEditEmployeeModal() {
+                document.getElementById('edit-employee-modal').classList.remove('active');
+                document.getElementById('edit-employee-form').reset();
+            }
+
+            showTaskProgressModal(taskId) {
+                this.currentTaskId = taskId;
+                const task = this.dataManager.getTasks().find(t => t.id === taskId);
+                if (task) {
+                    document.getElementById('progress-percentage').value = task.progressPercentage;
+                }
+                document.getElementById('task-progress-modal').classList.add('active');
+            }
+
+            hideTaskProgressModal() {
+                document.getElementById('task-progress-modal').classList.remove('active');
+                document.getElementById('update-task-progress-form').reset();
+                this.currentTaskId = null;
+            }
+
+            showContextMenu(x, y, nodeId) {
+                selectedNodeId = nodeId;
+                const contextMenu = document.getElementById('node-context-menu');
+                contextMenu.style.left = `${x}px`;
+                contextMenu.style.top = `${y}px`;
+                contextMenu.classList.add('active');
+            }
+
+            hideContextMenu() {
+                const contextMenu = document.getElementById('node-context-menu');
+                if (contextMenu) {
+                    contextMenu.classList.remove('active');
+                }
+            }
+
+            showAnalyticsModal() {
+                document.getElementById('analytics-modal').classList.add('active');
+                this.renderCharts();
+            }
+
+            hideAnalyticsModal() {
+                document.getElementById('analytics-modal').classList.remove('active');
+            }
+
+            // Employee Management
+            async handleAddEmployee() {
+                const employee = {
+                    firstName: document.getElementById('employee-first-name').value,
+                    lastName: document.getElementById('employee-last-name').value,
+                    email: document.getElementById('employee-email').value,
+                    role: document.getElementById('employee-role').value,
+                    department: document.getElementById('employee-department').value,
+                    position: document.getElementById('employee-position').value,
+                    managerId: document.getElementById('employee-manager').value || null,
+                    hireDate: document.getElementById('employee-hire-date').value,
+                    performanceIndex: 75
+                };
+
+                this.dataManager.addEmployee(employee);
+                this.hideAddEmployeeModal();
+                this.showToast('Employee added successfully!', 'success');
+                this.renderOrgChart();
+                this.populateEmployeeSelects();
+                this.updateDashboard();
+            }
+
+            async handleEditEmployee() {
+                const employeeId = parseInt(document.getElementById('edit-employee-id').value);
+                const updates = {
+                    firstName: document.getElementById('edit-employee-first-name').value,
+                    lastName: document.getElementById('edit-employee-last-name').value,
+                    email: document.getElementById('edit-employee-email').value,
+                    role: document.getElementById('edit-employee-role').value,
+                    department: document.getElementById('edit-employee-department').value,
+                    position: document.getElementById('edit-employee-position').value,
+                    managerId: document.getElementById('edit-employee-manager').value || null,
+                    performanceIndex: parseInt(document.getElementById('edit-employee-performance').value)
+                };
+
+                this.dataManager.updateEmployee(employeeId, updates);
+                this.hideEditEmployeeModal();
+                this.showToast('Employee updated successfully!', 'success');
+                this.renderOrgChart();
+                this.populateEmployeeSelects();
+                this.updateDashboard();
+            }
+
+            async handleDeleteEmployee() {
+                const employeeId = parseInt(document.getElementById('edit-employee-id').value);
+                
+                if (confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
+                    this.dataManager.deleteEmployee(employeeId);
+                    this.hideEditEmployeeModal();
+                    this.showToast('Employee deleted successfully!', 'success');
+                    this.renderOrgChart();
+                    this.populateEmployeeSelects();
+                    this.updateDashboard();
+                }
+            }
+
+            handleContextEdit() {
+                this.hideContextMenu();
+                if (selectedNodeId) {
+                    this.showEditEmployeeModal(parseInt(selectedNodeId));
+                }
+            }
+
+            handleContextAddReport() {
+                this.hideContextMenu();
+                if (selectedNodeId) {
+                    this.showAddEmployeeModal();
+                    document.getElementById('employee-manager').value = selectedNodeId;
+                }
+            }
+
+            handleContextViewDetails() {
+                this.hideContextMenu();
+                if (selectedNodeId) {
+                    const employee = this.dataManager.getEmployeeById(parseInt(selectedNodeId));
+                    if (employee) {
+                        alert(`Employee Details:\n\nName: ${employee.firstName} ${employee.lastName}\nEmail: ${employee.email}\nRole: ${employee.role}\nDepartment: ${employee.department}\nPosition: ${employee.position}\nPerformance: ${employee.performanceIndex}%`);
+                    }
+                }
+            }
+
+            handleContextRemoveReport() {
+                this.hideContextMenu();
+                if (selectedNodeId) {
+                    const employee = this.dataManager.getEmployeeById(parseInt(selectedNodeId));
+                    if (employee && employee.managerId) {
+                        if (confirm(`Remove ${employee.firstName} ${employee.lastName} from their current manager?`)) {
+                            this.dataManager.updateEmployee(employee.id, { managerId: null });
+                            this.showToast('Employee removed from manager', 'success');
+                            this.renderOrgChart();
+                        }
+                    }
+                }
+            }
+
+            // Org Chart Methods
+            renderOrgChart() {
+                const employees = this.dataManager.getEmployees();
+                const container = document.getElementById('employee-hierarchy');
+                
+                // Clear existing content
+                container.innerHTML = '';
+                
+                if (cy) {
+                    cy.destroy();
+                }
+
+                // Create nodes and edges
+                const nodes = [];
+                const edges = [];
+
+                employees.forEach(emp => {
+                    // Determine node color based on performance
+                    let nodeColor = '#2c80ff'; // Default blue
+                    let performanceClass = '';
+                    if (emp.performanceIndex >= 90) {
+                        nodeColor = '#28a745';
+                        performanceClass = 'Excellent';
+                    } else if (emp.performanceIndex >= 75) {
+                        nodeColor = '#ffc107';
+                        performanceClass = 'Good';
+                    } else if (emp.performanceIndex >= 60) {
+                        nodeColor = '#fd7e14';
+                        performanceClass = 'Average';
+                    } else {
+                        nodeColor = '#dc3545';
+                        performanceClass = 'Needs Improvement';
+                    }
+
+                    // Create node label
+                    const label = `${emp.position}\n${emp.firstName} ${emp.lastName}\n${emp.email}\n${emp.department}\n${emp.performanceIndex}% (${performanceClass})`;
+
+                    nodes.push({
+                        data: {
+                            id: emp.id.toString(),
+                            label: label,
+                            color: nodeColor,
+                            performance: emp.performanceIndex,
+                            firstName: emp.firstName,
+                            lastName: emp.lastName,
+                            role: emp.role,
+                            department: emp.department,
+                            position: emp.position,
+                            email: emp.email
+                        }
+                    });
+
+                    if (emp.managerId) {
+                        edges.push({
+                            data: {
+                                id: `${emp.id}-${emp.managerId}`,
+                                source: emp.managerId.toString(),
+                                target: emp.id.toString()
+                            }
+                        });
+                    }
+                });
+
+                // Initialize cytoscape
+                cy = cytoscape({
+                    container: container,
+                    elements: {
+                        nodes: nodes,
+                        edges: edges
+                    },
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'shape': 'roundrectangle',
+                                'width': 180,
+                                'height': 100,
+                                'background-color': 'data(color)',
+                                'background-opacity': 0.1,
+                                'border-width': 2,
+                                'border-color': 'data(color)',
+                                'border-opacity': 0.8,
+                                'label': 'data(label)',
+                                'text-wrap': 'wrap',
+                                'text-max-width': 160,
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'color': '#333',
+                                'font-size': '12px',
+                                'font-weight': '500',
+                                'padding': '10px'
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 2,
+                                'line-color': '#ccc',
+                                'target-arrow-color': '#ccc',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier'
+                            }
+                        },
+                        {
+                            selector: ':selected',
+                            style: {
+                                'border-width': 4,
+                                'border-color': '#ff6b6b',
+                                'background-color': 'data(color)',
+                                'background-opacity': 0.3
+                            }
+                        }
+                    ],
+                    layout: {
+                        name: 'dagre',
+                        rankDir: 'TB',
+                        nodeSep: 50,
+                        rankSep: 100,
+                        animate: true,
+                        animationDuration: 500
+                    },
+                    minZoom: 0.2,
+                    maxZoom: 3,
+                    wheelSensitivity: 0.2
+                });
+
+                // Node click events
+                cy.on('tap', 'node', (evt) => {
+                    const node = evt.target;
+                    selectedNodeId = node.id();
+                    
+                    // Single click - show edit modal
+                    this.showEditEmployeeModal(parseInt(node.id()));
+                });
+
+                // Right-click for context menu
+                cy.on('cxttap', 'node', (evt) => {
+                    const node = evt.target;
+                    selectedNodeId = node.id();
+                    evt.preventDefault();
+                    this.showContextMenu(evt.originalEvent.pageX, evt.originalEvent.pageY, node.id());
+                });
+
+                // Fit to viewport
+                setTimeout(() => {
+                    if (cy) {
+                        cy.fit();
+                        cy.center();
+                    }
+                }, 100);
+            }
+
+            filterOrgChart() {
+                const searchTerm = document.getElementById('employee-search').value.toLowerCase();
+                const departmentFilter = document.getElementById('filter-department').value;
+                const roleFilter = document.getElementById('filter-role').value;
+
+                if (!cy) return;
+
+                // Reset all nodes and edges
+                cy.nodes().style({
+                    'display': 'element',
+                    'opacity': 1
+                });
+                cy.edges().style({
+                    'display': 'element',
+                    'opacity': 1
+                });
+
+                // Apply filters
+                if (searchTerm || departmentFilter || roleFilter) {
+                    const employees = this.dataManager.getEmployees();
+                    const hiddenNodes = new Set();
+
+                    employees.forEach(emp => {
+                        const matchesSearch = searchTerm ? 
+                            emp.firstName.toLowerCase().includes(searchTerm) ||
+                            emp.lastName.toLowerCase().includes(searchTerm) ||
+                            emp.email.toLowerCase().includes(searchTerm) ||
+                            emp.position.toLowerCase().includes(searchTerm) ||
+                            emp.department.toLowerCase().includes(searchTerm) : true;
+
+                        const matchesDepartment = departmentFilter ? emp.department === departmentFilter : true;
+                        const matchesRole = roleFilter ? emp.role === roleFilter : true;
+
+                        if (!(matchesSearch && matchesDepartment && matchesRole)) {
+                            hiddenNodes.add(emp.id.toString());
+                        }
+                    });
+
+                    // Hide nodes that don't match filters
+                    hiddenNodes.forEach(nodeId => {
+                        const node = cy.getElementById(nodeId);
+                        if (node) {
+                            node.style({
+                                'display': 'none',
+                                'opacity': 0
+                            });
+
+                            // Hide connected edges
+                            node.connectedEdges().forEach(edge => {
+                                edge.style({
+                                    'display': 'none',
+                                    'opacity': 0
+                                });
+                            });
+                        }
+                    });
+
+                    // Show nodes that match filters
+                    cy.nodes().forEach(node => {
+                        if (!hiddenNodes.has(node.id())) {
+                            node.style({
+                                'display': 'element',
+                                'opacity': 1
+                            });
+                        }
+                    });
+                }
+
+                // Re-layout
+                cy.layout({
+                    name: 'dagre',
+                    rankDir: 'TB',
+                    nodeSep: 50,
+                    rankSep: 100,
+                    animate: true,
+                    animationDuration: 500
+                }).run();
+            }
+
+            // Task Management
+            async handleCreateTask() {
+                const task = {
+                    title: document.getElementById('task-title').value,
+                    description: document.getElementById('task-description').value,
+                    metric: document.getElementById('task-metric').value,
+                    deadline: document.getElementById('task-deadline').value,
+                    assigneeId: parseInt(document.getElementById('task-assignee').value),
+                    status: 'In Progress'
+                };
+
+                this.dataManager.addTask(task);
+                document.getElementById('create-task-form').reset();
+                this.showToast('Task created successfully!', 'success');
+                this.renderTasks();
+                this.updateDashboard();
+            }
+
+            renderTasks() {
+                const tasks = this.dataManager.getTasks();
+                const employees = this.dataManager.getEmployees();
+                const tbody = document.getElementById('tasks-table-body');
+
+                tbody.innerHTML = tasks.map(task => {
+                    const assignee = employees.find(emp => emp.id === task.assigneeId);
+                    const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unknown';
+                    
+                    return `
+                        <tr>
+                            <td>${task.title}</td>
+                            <td>${task.metric}</td>
+                            <td>${assigneeName}</td>
+                            <td>${new Date(task.deadline).toLocaleDateString()}</td>
+                            <td>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${task.progressPercentage}%"></div>
+                                </div>
+                                <span>${task.progressPercentage}%</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-outline update-progress-btn" data-task-id="${task.id}" style="padding: 5px 10px;">
+                                    <i class="fas fa-edit"></i> Update
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Add event listeners to update progress buttons
+                document.querySelectorAll('.update-progress-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const taskId = parseInt(btn.getAttribute('data-task-id'));
+                        this.showTaskProgressModal(taskId);
+                    });
+                });
+            }
+
+            async handleUpdateTaskProgress() {
+                const progress = parseInt(document.getElementById('progress-percentage').value);
+                if (progress >= 0 && progress <= 100) {
+                    this.dataManager.updateTaskProgress(this.currentTaskId, progress);
+                    this.hideTaskProgressModal();
+                    this.showToast('Task progress updated!', 'success');
+                    this.renderTasks();
+                    this.updateDashboard();
+                } else {
+                    this.showToast('Please enter a valid progress percentage (0-100)', 'error');
+                }
+            }
+
+            // Feedback Management
+            async handleGiveFeedback() {
+                const feedback = {
+                    recipientId: parseInt(document.getElementById('feedback-recipient').value),
+                    type: document.getElementById('feedback-type').value,
+                    rating: document.getElementById('feedback-rating').value ? parseInt(document.getElementById('feedback-rating').value) : null,
+                    message: document.getElementById('feedback-message').value,
+                    isAnonymous: document.getElementById('anonymous-feedback').checked,
+                    giverId: this.dataManager.currentUser.id
+                };
+
+                this.dataManager.addFeedback(feedback);
+                document.getElementById('give-feedback-form').reset();
+                this.showToast('Feedback submitted successfully!', 'success');
+                this.renderFeedback();
+                this.updateDashboard();
+            }
+
+            renderFeedback() {
+                const feedback = this.dataManager.getFeedback();
+                const employees = this.dataManager.getEmployees();
+
+                // Recent feedback for dashboard
+                const recentFeedback = this.dataManager.getRecentFeedback(3);
+                const recentContainer = document.getElementById('recent-feedback-list');
+                recentContainer.innerHTML = recentFeedback.map(fb => {
+                    const recipient = employees.find(emp => emp.id === fb.recipientId);
+                    const giver = fb.isAnonymous ? 'Anonymous' : employees.find(emp => emp.id === fb.giverId);
+                    const giverName = giver ? `${giver.firstName} ${giver.lastName}` : 'Unknown';
+                    const recipientName = recipient ? `${recipient.firstName} ${recipient.lastName}` : 'Unknown';
+                    
+                    return `
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <strong>${giverName} → ${recipientName}</strong>
+                                <span class="feedback-date">${fb.createdAt}</span>
+                            </div>
+                            <p class="feedback-text">${fb.message}</p>
+                            ${fb.rating ? `<span class="feedback-type ${fb.type}">Rating: ${fb.rating}/5</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                // Received feedback
+                const receivedContainer = document.getElementById('received-feedback-list');
+                const receivedFeedback = feedback.filter(fb => fb.recipientId === this.dataManager.currentUser.id);
+                receivedContainer.innerHTML = receivedFeedback.map(fb => {
+                    const giver = fb.isAnonymous ? 'Anonymous' : employees.find(emp => emp.id === fb.giverId);
+                    const giverName = giver ? `${giver.firstName} ${giver.lastName}` : 'Unknown';
+                    
+                    return `
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <strong>${giverName}</strong>
+                                <span class="feedback-date">${fb.createdAt}</span>
+                            </div>
+                            <p class="feedback-text">${fb.message}</p>
+                            <span class="feedback-type ${fb.type}">${fb.type.charAt(0).toUpperCase() + fb.type.slice(1)}</span>
+                            ${fb.rating ? `<div>Rating: ${fb.rating}/5</div>` : ''}
+                        </div>
+                    `;
+                }).join('') || '<p>No feedback received yet.</p>';
+
+                // Given feedback
+                const givenContainer = document.getElementById('given-feedback-list');
+                const givenFeedback = feedback.filter(fb => fb.giverId === this.dataManager.currentUser.id);
+                givenContainer.innerHTML = givenFeedback.map(fb => {
+                    const recipient = employees.find(emp => emp.id === fb.recipientId);
+                    const recipientName = recipient ? `${recipient.firstName} ${recipient.lastName}` : 'Unknown';
+                    
+                    return `
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <strong>To: ${recipientName}</strong>
+                                <span class="feedback-date">${fb.createdAt}</span>
+                            </div>
+                            <p class="feedback-text">${fb.message}</p>
+                            <span class="feedback-type ${fb.type}">${fb.type.charAt(0).toUpperCase() + fb.type.slice(1)}</span>
+                            ${fb.rating ? `<div>Rating: ${fb.rating}/5</div>` : ''}
+                        </div>
+                    `;
+                }).join('') || '<p>No feedback given yet.</p>';
+            }
+
+            // Review Management
+            async handleStartReview() {
+                this.showToast('Review session started! Navigate to Reviews page to continue.', 'success');
+                this.navigateToPage('reviews');
+            }
+
+            async handleCompleteReview() {
+                const review = {
+                    employeeId: parseInt(document.getElementById('review-employee').value),
+                    period: document.getElementById('review-period').value,
+                    qualityWork: parseInt(document.getElementById('quality-work').value),
+                    communication: parseInt(document.getElementById('communication').value),
+                    collaboration: parseInt(document.getElementById('collaboration').value),
+                    problemSolving: parseInt(document.getElementById('problem-solving').value),
+                    strengths: document.getElementById('strengths').value,
+                    improvements: document.getElementById('improvements').value,
+                    futureTasks: document.getElementById('future-tasks').value,
+                    overallRating: Math.round((
+                        parseInt(document.getElementById('quality-work').value) +
+                        parseInt(document.getElementById('communication').value) +
+                        parseInt(document.getElementById('collaboration').value) +
+                        parseInt(document.getElementById('problem-solving').value)
+                    ) / 4 * 10) / 10
+                };
+
+                this.dataManager.addReview(review);
+                document.getElementById('review-form').reset();
+                this.showToast('Performance review completed!', 'success');
+                this.renderReviews();
+                this.updateDashboard();
+            }
+
+            startReviewCycle() {
+                this.showToast('Review cycle started! All managers have been notified.', 'success');
+                setTimeout(() => {
+                    this.showToast('3 employees are pending reviews', 'success');
+                }, 2000);
+            }
+
+            renderReviews() {
+                const reviews = this.dataManager.getReviews();
+                const employees = this.dataManager.getEmployees();
+                const tbody = document.getElementById('reviews-table-body');
+
+                tbody.innerHTML = reviews.map(review => {
+                    const employee = employees.find(emp => emp.id === review.employeeId);
+                    const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+                    
+                    return `
+                        <tr>
+                            <td>${employeeName}</td>
+                            <td>${review.period}</td>
+                            <td><span class="status completed">${review.status || 'Completed'}</span></td>
+                            <td>${review.overallRating} / 5</td>
+                            <td>
+                                <button class="btn btn-outline" style="padding: 5px 10px;">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Upcoming reviews for dashboard
+                const upcomingContainer = document.getElementById('upcoming-reviews-list');
+                const upcomingReviews = [
+                    {
+                        title: 'Quarterly Performance',
+                        description: 'Q4 2023 Reviews',
+                        date: 'Dec 15'
+                    },
+                    {
+                        title: 'Annual Compensation',
+                        description: '2023 Year-end',
+                        date: 'Jan 10'
+                    }
+                ];
+                
+                upcomingContainer.innerHTML = upcomingReviews.map(review => `
+                    <div class="review-item">
+                        <div class="review-details">
+                            <strong>${review.title}</strong>
+                            <p style="font-size: 0.9rem; color: var(--gray); margin-top: 5px;">${review.description}</p>
+                        </div>
+                        <div class="review-date">${review.date}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Attendance Management
+            async handleClockInOut() {
+                const button = document.getElementById('clock-in-out');
+                const isClockedIn = button.textContent.includes('Clock Out');
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                if (isClockedIn) {
+                    // Clock out
+                    button.innerHTML = '<i class="fas fa-clock"></i> Clock In';
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-primary');
+                    this.showToast(`Clocked out at ${timeString}`, 'success');
+                } else {
+                    // Clock in
+                    button.innerHTML = '<i class="fas fa-clock"></i> Clock Out';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-danger');
+                    this.showToast(`Clocked in at ${timeString}`, 'success');
+                }
+                
+                // Add attendance record
+                const record = {
+                    employeeId: this.dataManager.currentUser.id,
+                    status: isClockedIn ? 'out' : 'in',
+                    clockIn: isClockedIn ? null : timeString,
+                    clockOut: isClockedIn ? timeString : null,
+                    totalHours: isClockedIn ? 8 : 0
+                };
+                
+                this.dataManager.addAttendance(record);
+                this.renderAttendance();
+                this.updateDashboard();
+            }
+
+            renderAttendance() {
+                const attendance = this.dataManager.getAttendance();
+                const employees = this.dataManager.getEmployees();
+                const today = new Date().toISOString().split('T')[0];
+                const todayRecords = attendance.filter(a => a.date === today);
+                
+                const tbody = document.getElementById('attendance-table-body');
+                tbody.innerHTML = employees.map(emp => {
+                    const todayRecord = todayRecords.find(r => r.employeeId === emp.id);
+                    const status = todayRecord ? todayRecord.status : 'absent';
+                    
+                    let statusClass = 'status-absent';
+                    if (status === 'present') statusClass = 'status-present';
+                    if (status === 'leave') statusClass = 'status-leave';
+                    
+                    return `
+                        <tr>
+                            <td>${emp.firstName} ${emp.lastName}</td>
+                            <td>${emp.department}</td>
+                            <td><span class="attendance-status ${statusClass}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+                            <td>${todayRecord && todayRecord.clockIn ? todayRecord.clockIn : '-'}</td>
+                            <td>${todayRecord && todayRecord.clockOut ? todayRecord.clockOut : '-'}</td>
+                            <td>${todayRecord && todayRecord.totalHours ? `${todayRecord.totalHours}h` : '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Render attendance chart
+                this.renderAttendanceChart();
+            }
+
+            renderAttendanceChart() {
+                const ctx = document.getElementById('attendance-chart');
+                if (!ctx) return;
+
+                if (charts.attendance) {
+                    charts.attendance.destroy();
+                }
+
+                const attendance = this.dataManager.getAttendance();
+                const employees = this.dataManager.getEmployees();
+                
+                // Get last 7 days
+                const dates = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+
+                const presentData = dates.map(date => {
+                    return attendance.filter(a => a.date === date && a.status === 'present').length;
+                });
+
+                charts.attendance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates.map(date => new Date(date).toLocaleDateString('en-US', { weekday: 'short' })),
+                        datasets: [{
+                            label: 'Present Employees',
+                            data: presentData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Attendance Trend (Last 7 Days)'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: employees.length
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Leave Management
+            async handleApplyLeave() {
+                const leave = {
+                    employeeId: this.dataManager.currentUser.id,
+                    type: document.getElementById('leave-type').value,
+                    startDate: document.getElementById('leave-start').value,
+                    endDate: document.getElementById('leave-end').value,
+                    days: parseInt(document.getElementById('leave-days').value),
+                    reason: document.getElementById('leave-reason').value
+                };
+
+                this.dataManager.addLeave(leave);
+                document.getElementById('apply-leave-form').reset();
+                this.showToast('Leave request submitted successfully!', 'success');
+                this.renderLeaves();
+            }
+
+            renderLeaves() {
+                const leaves = this.dataManager.getLeaves();
+                const employees = this.dataManager.getEmployees();
+                
+                // Render pending leaves for managers/HR
+                const pendingLeaves = leaves.filter(l => l.status === 'Pending');
+                const tbody = document.getElementById('pending-leaves-body');
+                
+                tbody.innerHTML = pendingLeaves.map(leave => {
+                    const employee = employees.find(emp => emp.id === leave.employeeId);
+                    const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+                    
+                    return `
+                        <tr>
+                            <td>${employeeName}</td>
+                            <td>${leave.type}</td>
+                            <td>${new Date(leave.startDate).toLocaleDateString()}</td>
+                            <td>${new Date(leave.endDate).toLocaleDateString()}</td>
+                            <td><span class="status in-progress">${leave.status}</span></td>
+                            <td>
+                                <button class="btn btn-success approve-leave-btn" data-leave-id="${leave.id}" style="padding: 5px 10px;">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-danger reject-leave-btn" data-leave-id="${leave.id}" style="padding: 5px 10px;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="6" style="text-align: center;">No pending leave requests</td></tr>';
+
+                // Add event listeners for leave approval
+                document.querySelectorAll('.approve-leave-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const leaveId = parseInt(btn.getAttribute('data-leave-id'));
+                        this.approveLeave(leaveId, true);
+                    });
+                });
+
+                document.querySelectorAll('.reject-leave-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const leaveId = parseInt(btn.getAttribute('data-leave-id'));
+                        this.approveLeave(leaveId, false);
+                    });
+                });
+
+                // Render leave calendar
+                this.renderLeaveCalendar();
+            }
+
+            approveLeave(leaveId, approved) {
+                const status = approved ? 'Approved' : 'Rejected';
+                this.dataManager.updateLeaveStatus(leaveId, status);
+                this.showToast(`Leave request ${status.toLowerCase()}!`, 'success');
+                this.renderLeaves();
+            }
+
+            renderLeaveCalendar() {
+                const calendar = document.getElementById('leave-calendar');
+                if (!calendar) return;
+
+                const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                const daysInMonth = lastDay.getDate();
+
+                let calendarHTML = '';
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const date = new Date(today.getFullYear(), today.getMonth(), i);
+                    const dateString = date.toISOString().split('T')[0];
+                    
+                    // Check if this date has any leaves
+                    const leaves = this.dataManager.getLeaves();
+                    const hasLeave = leaves.some(leave => {
+                        const start = new Date(leave.startDate);
+                        const end = new Date(leave.endDate);
+                        return date >= start && date <= end && leave.status === 'Approved';
+                    });
+
+                    calendarHTML += `
+                        <div class="calendar-day ${hasLeave ? 'leave' : ''}">
+                            ${i}
+                        </div>
+                    `;
+                }
+
+                calendar.innerHTML = calendarHTML;
+            }
+
+            // Shift Management
+            async handleCreateShift() {
+                const shift = {
+                    name: document.getElementById('shift-name').value,
+                    startTime: document.getElementById('shift-start').value,
+                    endTime: document.getElementById('shift-end').value,
+                    employeeIds: Array.from(document.getElementById('shift-employees').selectedOptions).map(opt => parseInt(opt.value))
+                };
+
+                this.dataManager.addShift(shift);
+                document.getElementById('create-shift-form').reset();
+                this.showToast('Shift created successfully!', 'success');
+                this.renderShifts();
+            }
+
+            renderShifts() {
+                const shifts = this.dataManager.getShifts();
+                const employees = this.dataManager.getEmployees();
+                const container = document.getElementById('shift-schedule');
+                
+                container.innerHTML = shifts.map(shift => {
+                    const assignedEmployees = shift.employeeIds.map(id => 
+                        employees.find(emp => emp.id === id)
+                    ).filter(emp => emp);
+                    
+                    return `
+                        <div class="shift-card">
+                            <h4>${shift.name}</h4>
+                            <p>${shift.startTime} - ${shift.endTime}</p>
+                            <p><strong>Assigned Employees:</strong></p>
+                            <ul>
+                                ${assignedEmployees.map(emp => 
+                                    `<li>${emp.firstName} ${emp.lastName}</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }).join('') || '<p>No shifts scheduled</p>';
+            }
+
+            // Document Management
+            async handleUploadDocument() {
+                const fileInput = document.getElementById('document-file');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    this.showToast('Please select a file to upload', 'error');
+                    return;
+                }
+
+                const document = {
+                    employeeId: parseInt(document.getElementById('document-employee').value),
+                    type: document.getElementById('document-type').value,
+                    name: file.name,
+                    size: file.size,
+                    uploadedBy: this.dataManager.currentUser.id
+                };
+
+                this.dataManager.addDocument(document);
+                document.getElementById('upload-document-form').reset();
+                this.showToast('Document uploaded successfully!', 'success');
+                this.renderDocuments();
+            }
+
+            renderDocuments() {
+                const documents = this.dataManager.getDocuments();
+                const employees = this.dataManager.getEmployees();
+                const container = document.getElementById('document-list');
+                
+                container.innerHTML = documents.map(doc => {
+                    const employee = employees.find(emp => emp.id === doc.employeeId);
+                    const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+                    
+                    return `
+                        <div class="document-card">
+                            <div class="document-icon">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <h4>${doc.name}</h4>
+                            <p>${employeeName}</p>
+                            <p>${doc.type}</p>
+                            <p>${(doc.size / 1024).toFixed(2)} KB</p>
+                            <button class="btn btn-outline" style="margin-top: 10px;">
+                                <i class="fas fa-download"></i> Download
+                            </button>
+                        </div>
+                    `;
+                }).join('') || '<p>No documents uploaded</p>';
+            }
+
+            // Admin Management
+            renderAdminUsers() {
+                const employees = this.dataManager.getEmployees();
+                const tbody = document.getElementById('admin-users-table-body');
+
+                tbody.innerHTML = employees.map(emp => {
+                    return `
+                        <tr>
+                            <td>${emp.firstName} ${emp.lastName}</td>
+                            <td>${emp.email}</td>
+                            <td>${emp.role}</td>
+                            <td>${emp.department}</td>
+                            <td><span class="status active">${emp.isActive ? 'Active' : 'Inactive'}</span></td>
+                            <td>
+                                <button class="btn btn-outline edit-user-btn" data-user-id="${emp.id}" style="padding: 5px 10px;">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger delete-user-btn" data-user-id="${emp.id}" style="padding: 5px 10px;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Add event listeners
+                document.querySelectorAll('.edit-user-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const userId = parseInt(btn.getAttribute('data-user-id'));
+                        this.showEditEmployeeModal(userId);
+                    });
+                });
+
+                document.querySelectorAll('.delete-user-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const userId = parseInt(btn.getAttribute('data-user-id'));
+                        if (confirm('Are you sure you want to delete this user?')) {
+                            this.dataManager.deleteEmployee(userId);
+                            this.showToast('User deleted successfully!', 'success');
+                            this.renderAdminUsers();
+                            this.renderOrgChart();
+                            this.updateDashboard();
+                        }
+                    });
+                });
+            }
+
+            // Dashboard Updates
+            updateDashboard() {
+                const teamPerformance = this.dataManager.getTeamPerformance();
+                const taskCompletion = this.dataManager.getTaskCompletionRate();
+                const attendanceStats = this.dataManager.getAttendanceStats();
+
+                // Update team performance metrics
+                document.getElementById('team-performance-value').textContent = `${teamPerformance}%`;
+                
+                document.getElementById('team-task-completion').textContent = `${taskCompletion}%`;
+                document.getElementById('team-task-bar').style.width = `${taskCompletion}%`;
+
+                // Update engagement (demo data)
+                const engagement = 82;
+                document.getElementById('team-engagement').textContent = `${engagement}%`;
+                document.getElementById('team-engagement-bar').style.width = `${engagement}%`;
+
+                // Update attendance stats
+                document.getElementById('present-count').textContent = attendanceStats.present;
+                document.getElementById('absent-count').textContent = attendanceStats.absent;
+                document.getElementById('leave-count').textContent = attendanceStats.leave;
+
+                // Update daily tasks
+                const tasks = this.dataManager.getTasks();
+                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
+                const totalTasks = tasks.length || 1;
+                const taskPercentage = Math.round((completedTasks / totalTasks) * 100);
+                document.getElementById('water-level').style.height = `${taskPercentage}%`;
+                document.getElementById('daily-tasks-count').textContent = `${completedTasks}/${totalTasks}`;
+
+                // Refresh recent feedback
+                this.renderFeedback();
+            }
+
+            // Charts
+            renderCharts() {
+                this.renderPerformanceChart();
+                this.renderDepartmentChart();
+                this.renderFeedbackChart();
+            }
+
+            renderPerformanceChart() {
+                const ctx = document.getElementById('performance-chart');
+                if (!ctx) return;
+
+                if (charts.performance) {
+                    charts.performance.destroy();
+                }
+
+                const employees = this.dataManager.getEmployees();
+                
+                charts.performance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: employees.map(emp => `${emp.firstName} ${emp.lastName.charAt(0)}.`),
+                        datasets: [{
+                            label: 'Performance Index',
+                            data: employees.map(emp => emp.performanceIndex),
+                            backgroundColor: 'rgba(44, 128, 255, 0.6)',
+                            borderColor: 'rgba(44, 128, 255, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderDepartmentChart() {
+                const ctx = document.getElementById('department-chart');
+                if (!ctx) return;
+
+                if (charts.department) {
+                    charts.department.destroy();
+                }
+
+                const employees = this.dataManager.getEmployees();
+                const departments = [...new Set(employees.map(emp => emp.department))];
+                const departmentAverages = departments.map(dept => {
+                    const deptEmployees = employees.filter(emp => emp.department === dept);
+                    const avg = deptEmployees.reduce((sum, emp) => sum + emp.performanceIndex, 0) / deptEmployees.length;
+                    return Math.round(avg);
+                });
+
+                charts.department = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: departments,
+                        datasets: [{
+                            data: departmentAverages,
+                            backgroundColor: [
+                                '#FF6384',
+                                '#36A2EB',
+                                '#FFCE56',
+                                '#4BC0C0',
+                                '#9966FF',
+                                '#FF9F40'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Average Performance by Department'
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderFeedbackChart() {
+                const ctx = document.getElementById('feedback-chart');
+                if (!ctx) return;
+
+                if (charts.feedback) {
+                    charts.feedback.destroy();
+                }
+
+                const feedback = this.dataManager.getFeedback();
+                const types = ['positive', 'constructive', 'developmental'];
+                const typeCounts = types.map(type => 
+                    feedback.filter(fb => fb.type === type).length
+                );
+
+                charts.feedback = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Positive', 'Constructive', 'Developmental'],
+                        datasets: [{
+                            data: typeCounts,
+                            backgroundColor: [
+                                '#28a745',
+                                '#ffc107',
+                                '#17a2b8'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Feedback Distribution'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Export functionality
+            exportPerformanceData() {
+                const employees = this.dataManager.getEmployees();
+                const csvContent = this.convertToCSV(employees, ['firstName', 'lastName', 'email', 'role', 'department', 'performanceIndex']);
+                this.downloadCSV(csvContent, 'performance_data.csv');
+                this.showToast('Performance data exported successfully!', 'success');
+            }
+
+            exportFeedbackData() {
+                const feedback = this.dataManager.getFeedback();
+                const employees = this.dataManager.getEmployees();
+                
+                const feedbackWithNames = feedback.map(fb => {
+                    const giver = employees.find(emp => emp.id === fb.giverId);
+                    const recipient = employees.find(emp => emp.id === fb.recipientId);
+                    return {
+                        giver: fb.isAnonymous ? 'Anonymous' : (giver ? `${giver.firstName} ${giver.lastName}` : 'Unknown'),
+                        recipient: recipient ? `${recipient.firstName} ${recipient.lastName}` : 'Unknown',
+                        type: fb.type,
+                        rating: fb.rating || 'N/A',
+                        message: fb.message,
+                        date: fb.createdAt
+                    };
+                });
+
+                const csvContent = this.convertToCSV(feedbackWithNames, ['giver', 'recipient', 'type', 'rating', 'message', 'date']);
+                this.downloadCSV(csvContent, 'feedback_analysis.csv');
+                this.showToast('Feedback analysis exported successfully!', 'success');
+            }
+
+            exportReviewData() {
+                const reviews = this.dataManager.getReviews();
+                const employees = this.dataManager.getEmployees();
+                
+                const reviewsWithNames = reviews.map(review => {
+                    const employee = employees.find(emp => emp.id === review.employeeId);
+                    return {
+                        employee: employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown',
+                        period: review.period,
+                        qualityWork: review.qualityWork,
+                        communication: review.communication,
+                        collaboration: review.collaboration,
+                        problemSolving: review.problemSolving,
+                        overallRating: review.overallRating,
+                        strengths: review.strengths,
+                        improvements: review.improvements
+                    };
+                });
+
+                const csvContent = this.convertToCSV(reviewsWithNames, 
+                    ['employee', 'period', 'qualityWork', 'communication', 'collaboration', 'problemSolving', 'overallRating', 'strengths', 'improvements']);
+                this.downloadCSV(csvContent, 'performance_reviews.csv');
+                this.showToast('Review data exported successfully!', 'success');
+            }
+
+            convertToCSV(data, fields) {
+                const headers = fields.join(',');
+                const rows = data.map(item => 
+                    fields.map(field => {
+                        const value = item[field] || '';
+                        return `"${value.toString().replace(/"/g, '""')}"`;
+                    }).join(',')
+                );
+                return [headers, ...rows].join('\n');
+            }
+
+            downloadCSV(csvContent, filename) {
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            // Utility Methods
+            populateManagerSelect(selectId, excludeId = null) {
+                const employees = this.dataManager.getEmployees();
+                const select = document.getElementById(selectId);
+                
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add employee options (excluding the employee being edited)
+                employees.forEach(emp => {
+                    if (emp.id !== excludeId) {
+                        const option = document.createElement('option');
+                        option.value = emp.id;
+                        option.textContent = `${emp.firstName} ${emp.lastName} (${emp.role})`;
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            populateEmployeeSelects() {
+                const employees = this.dataManager.getEmployees();
+                const selects = [
+                    'task-assignee',
+                    'feedback-recipient',
+                    'review-employee',
+                    'document-employee',
+                    'shift-employees',
+                    'employee-manager',
+                    'edit-employee-manager'
+                ];
+
+                selects.forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    if (!select) return;
+                    
+                    // Clear existing options except the first one
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+
+                    // Add employee options
+                    employees.forEach(emp => {
+                        const option = document.createElement('option');
+                        option.value = emp.id;
+                        option.textContent = `${emp.firstName} ${emp.lastName} (${emp.role})`;
+                        select.appendChild(option);
+                    });
+                });
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = `toast ${type}`;
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            dataManager = new HRDataManager();
+            uiManager = new UIManager(dataManager);
+        });
+    </script>
+</body>
+</html>
