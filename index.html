@@ -2505,6 +2505,7 @@
                 const newId = reviews.length > 0 ? Math.max(...reviews.map(r => r.id)) + 1 : 1;
                 review.id = newId;
                 review.createdAt = new Date().toISOString().split('T')[0];
+                review.scheduledDate = review.scheduledDate || this.calculateNextReviewDate(review.period, review.createdAt);
                 review.status = 'Completed';
                 reviews.push(review);
                 this.saveReviews(reviews);
@@ -2524,7 +2525,7 @@
                 const attendance = this.getAttendance();
                 const newId = attendance.length > 0 ? Math.max(...attendance.map(a => a.id)) + 1 : 1;
                 record.id = newId;
-                record.date = new Date().toISOString().split('T')[0];
+                record.date = record.date || new Date().toISOString().split('T')[0];
                 attendance.push(record);
                 this.saveAttendance(attendance);
                 return record;
@@ -2638,8 +2639,28 @@
 
             getUpcomingReviews() {
                 const reviews = this.getReviews();
-                const upcoming = reviews.filter(r => new Date(r.createdAt) > new Date());
-                return upcoming.slice(0, 3);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                return reviews
+                    .filter(r => new Date(r.scheduledDate || r.createdAt) >= today)
+                    .sort((a, b) => new Date(a.scheduledDate || a.createdAt) - new Date(b.scheduledDate || b.createdAt))
+                    .slice(0, 3);
+            }
+
+            calculateNextReviewDate(period, createdAt) {
+                const baseDate = new Date(createdAt || new Date());
+                baseDate.setHours(0, 0, 0, 0);
+
+                if (period && period.toLowerCase().startsWith('q')) {
+                    baseDate.setMonth(baseDate.getMonth() + 3);
+                } else if (period && period.toLowerCase().includes('annual')) {
+                    baseDate.setFullYear(baseDate.getFullYear() + 1);
+                } else {
+                    baseDate.setMonth(baseDate.getMonth() + 1);
+                }
+
+                return baseDate.toISOString().split('T')[0];
             }
         }
 
@@ -3649,29 +3670,7 @@
                 }).join('');
 
                 // Upcoming reviews for dashboard
-                const upcomingContainer = document.getElementById('upcoming-reviews-list');
-                const upcomingReviews = [
-                    {
-                        title: 'Quarterly Performance',
-                        description: 'Q4 2023 Reviews',
-                        date: 'Dec 15'
-                    },
-                    {
-                        title: 'Annual Compensation',
-                        description: '2023 Year-end',
-                        date: 'Jan 10'
-                    }
-                ];
-                
-                upcomingContainer.innerHTML = upcomingReviews.map(review => `
-                    <div class="review-item">
-                        <div class="review-details">
-                            <strong>${review.title}</strong>
-                            <p style="font-size: 0.9rem; color: var(--gray); margin-top: 5px;">${review.description}</p>
-                        </div>
-                        <div class="review-date">${review.date}</div>
-                    </div>
-                `).join('');
+                this.renderUpcomingReviews();
             }
 
             // Attendance Management
@@ -3738,6 +3737,40 @@
 
                 // Render attendance chart
                 this.renderAttendanceChart();
+            }
+
+            renderUpcomingReviews() {
+                const upcomingContainer = document.getElementById('upcoming-reviews-list');
+                if (!upcomingContainer) return;
+
+                const employees = this.dataManager.getEmployees();
+                const upcomingReviews = this.dataManager.getUpcomingReviews();
+
+                if (upcomingReviews.length === 0) {
+                    upcomingContainer.innerHTML = '<p style="color: var(--gray);">No upcoming reviews scheduled.</p>';
+                    return;
+                }
+
+                upcomingContainer.innerHTML = upcomingReviews.map(review => {
+                    const employee = employees.find(emp => emp.id === review.employeeId);
+                    const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Employee';
+                    const periodLabel = review.period ? review.period.toUpperCase() : 'Review';
+                    const date = new Date(review.scheduledDate || review.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+
+                    return `
+                        <div class="review-item">
+                            <div class="review-details">
+                                <strong>${employeeName}</strong>
+                                <p style="font-size: 0.9rem; color: var(--gray); margin-top: 5px;">${periodLabel} Review</p>
+                            </div>
+                            <div class="review-date">${date}</div>
+                        </div>
+                    `;
+                }).join('');
             }
 
             renderAttendanceChart() {
@@ -4069,6 +4102,9 @@
 
                 // Refresh recent feedback
                 this.renderFeedback();
+
+                // Refresh upcoming reviews
+                this.renderUpcomingReviews();
             }
 
             // Charts
