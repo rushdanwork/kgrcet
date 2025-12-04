@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
     <script src="https://unpkg.com/cytoscape-dagre/cytoscape-dagre.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <style>
         :root {
             --primary: #2c80ff;
@@ -1051,10 +1053,10 @@
                     Sign In
                 </button>
                 <div style="margin-top: 10px; display: flex; gap: 10px; flex-direction: column;">
-                    <button type="button" class="btn btn-outline" style="width: 100%;" onclick="window.location.href='/api/auth/google'">
+                    <button type="button" id="google-signin" class="btn btn-outline" style="width: 100%;">
                         <i class="fab fa-google"></i> Sign in with Google
                     </button>
-                    <button type="button" class="btn btn-outline" style="width: 100%;" onclick="window.location.href='/api/auth/microsoft'">
+                    <button type="button" id="microsoft-signin" class="btn btn-outline" style="width: 100%;">
                         <i class="fab fa-microsoft"></i> Sign in with Microsoft
                     </button>
                 </div>
@@ -2023,6 +2025,21 @@
 
         const apiBase = 'http://localhost:4000/api';
 
+        const firebaseConfig = {
+          apiKey: "AIzaSyDLNTcJIs5MzTwbF1r-81fmEHh_xpP4-cc",
+          authDomain: "kgrcethr.firebaseapp.com",
+          projectId: "kgrcethr",
+          storageBucket: "kgrcethr.firebasestorage.app",
+          messagingSenderId: "106366662532",
+          appId: "1:106366662532:web:ea5517e944b359801d0fd1",
+          measurementId: "G-5DQH9LLZTQ"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        const microsoftProvider = new firebase.auth.OAuthProvider('microsoft.com');
+
         function getAuthHeaders() {
             const token = localStorage.getItem('token');
             return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -2159,30 +2176,7 @@
                             managerId: 1
                         }
                     ],
-                    tasks: [
-                        {
-                            id: 1,
-                            title: 'Q4 Marketing Campaign',
-                            description: 'Launch new marketing campaign for holiday season',
-                            metric: 'Increase sales by 15%',
-                            deadline: '2023-12-15',
-                            assigneeId: 2,
-                            progressPercentage: 65,
-                            status: 'In Progress',
-                            createdAt: '2023-10-01'
-                        },
-                        {
-                            id: 2,
-                            title: 'Website Redesign',
-                            description: 'Redesign company website with modern UI',
-                            metric: 'Improve user engagement by 25%',
-                            deadline: '2023-11-30',
-                            assigneeId: 5,
-                            progressPercentage: 40,
-                            status: 'In Progress',
-                            createdAt: '2023-09-15'
-                        }
-                    ],
+                    tasks: [],
                     feedback: [
                         {
                             id: 1,
@@ -2304,7 +2298,6 @@
                 const defaults = this.getDefaultData();
 
                 this.saveEmployees(defaults.employees);
-                this.saveTasks(defaults.tasks);
                 this.saveFeedback(defaults.feedback);
                 this.saveReviews(defaults.reviews);
                 this.saveAttendance(defaults.attendance);
@@ -2322,27 +2315,40 @@
 
             // Authentication methods
             async signIn(email, password) {
-                const res = await apiPost('/auth/login', { email, password });
-                if (res.token) {
-                    this.accessToken = res.token;
-                    this.currentUser = res.user;
-                    localStorage.setItem('token', res.token);
-                    localStorage.setItem('user', JSON.stringify(res.user));
-                    return { success: true, user: res.user };
+                try {
+                    const credential = await auth.signInWithEmailAndPassword(email, password);
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: credential.user.displayName || email });
+                    if (res && res.user) {
+                        this.accessToken = idToken;
+                        this.currentUser = res.user;
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        return { success: true, user: res.user };
+                    }
+                    return { success: false, error: res?.message || 'Login failed' };
+                } catch (err) {
+                    return { success: false, error: err.message };
                 }
-                return { success: false, error: res.message || 'Login failed' };
             }
 
             async signUp(payload) {
-                const res = await apiPost('/auth/signup', payload);
-                if (res.token) {
-                    this.accessToken = res.token;
-                    this.currentUser = res.user;
-                    localStorage.setItem('token', res.token);
-                    localStorage.setItem('user', JSON.stringify(res.user));
-                    return { success: true, user: res.user };
+                try {
+                    const credential = await auth.createUserWithEmailAndPassword(payload.email, payload.password);
+                    await credential.user.updateProfile({ displayName: payload.name });
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: payload.name });
+                    if (res && res.user) {
+                        this.accessToken = idToken;
+                        this.currentUser = res.user;
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        return { success: true, user: res.user };
+                    }
+                    return { success: false, error: res?.message || 'Signup failed' };
+                } catch (err) {
+                    return { success: false, error: err.message };
                 }
-                return { success: false, error: res.message || 'Signup failed' };
             }
 
             async fetchCurrentUser() {
@@ -2357,6 +2363,7 @@
             }
 
             logout() {
+                auth.signOut();
                 this.currentUser = null;
                 this.accessToken = null;
                 this.refreshToken = null;
@@ -2406,36 +2413,18 @@
 
             // Task methods
             getTasks() {
-                return JSON.parse(localStorage.getItem('tasks')) || [];
+                return [];
             }
 
-            saveTasks(tasks) {
-                localStorage.setItem('tasks', JSON.stringify(tasks));
+            saveTasks() {
+                return [];
             }
 
-            addTask(task) {
-                const tasks = this.getTasks();
-                const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-                task.id = newId;
-                task.createdAt = new Date().toISOString().split('T')[0];
-                task.progressPercentage = 0;
-                task.status = 'In Progress';
-                tasks.push(task);
-                this.saveTasks(tasks);
-                return task;
+            addTask() {
+                return null;
             }
 
-            updateTaskProgress(id, progress) {
-                const tasks = this.getTasks();
-                const task = tasks.find(t => t.id === id);
-                if (task) {
-                    task.progressPercentage = progress;
-                    if (progress >= 100) {
-                        task.status = 'Completed';
-                    }
-                    this.saveTasks(tasks);
-                    return task;
-                }
+            updateTaskProgress() {
                 return null;
             }
 
@@ -2681,6 +2670,14 @@
                     this.handleSignUp();
                 });
 
+                document.getElementById('google-signin').addEventListener('click', () => {
+                    this.handleProviderLogin('google');
+                });
+
+                document.getElementById('microsoft-signin').addEventListener('click', () => {
+                    this.handleProviderLogin('microsoft');
+                });
+
                 document.getElementById('logout-btn').addEventListener('click', (e) => {
                     e.preventDefault();
                     this.handleLogout();
@@ -2826,7 +2823,7 @@
 
                 // Quick actions
                 document.getElementById('quick-task').addEventListener('click', () => {
-                    this.navigateToPage('tasks');
+                    this.showToast('Tasks module removed', 'info');
                 });
 
                 document.getElementById('quick-feedback').addEventListener('click', () => {
@@ -2940,6 +2937,25 @@
                     this.showToast('Account created successfully!', 'success');
                 } else {
                     this.showToast('Error creating account', 'error');
+                }
+            }
+
+            async handleProviderLogin(provider) {
+                try {
+                    const authProvider = provider === 'google' ? googleProvider : microsoftProvider;
+                    const credential = await auth.signInWithPopup(authProvider);
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: credential.user.displayName || credential.user.email });
+                    if (res && res.user) {
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        this.dataManager.accessToken = idToken;
+                        this.dataManager.currentUser = res.user;
+                        await this.showMainApp();
+                        this.showToast('Signed in successfully', 'success');
+                    }
+                } catch (err) {
+                    this.showToast(err.message || 'Provider sign-in failed', 'error');
                 }
             }
 
@@ -3453,72 +3469,18 @@
 
             // Task Management
             async handleCreateTask() {
-                const task = {
-                    title: document.getElementById('task-title').value,
-                    description: document.getElementById('task-description').value,
-                    metric: document.getElementById('task-metric').value,
-                    deadline: document.getElementById('task-deadline').value,
-                    assigneeId: parseInt(document.getElementById('task-assignee').value),
-                    status: 'In Progress'
-                };
-
-                this.dataManager.addTask(task);
-                document.getElementById('create-task-form').reset();
-                this.showToast('Task created successfully!', 'success');
-                this.renderTasks();
-                this.updateDashboard();
+                this.showToast('Tasks module is disabled.', 'info');
             }
 
             renderTasks() {
-                const tasks = this.dataManager.getTasks();
-                const employees = this.dataManager.getEmployees();
                 const tbody = document.getElementById('tasks-table-body');
-
-                tbody.innerHTML = tasks.map(task => {
-                    const assignee = employees.find(emp => emp.id === task.assigneeId);
-                    const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unknown';
-                    
-                    return `
-                        <tr>
-                            <td>${task.title}</td>
-                            <td>${task.metric}</td>
-                            <td>${assigneeName}</td>
-                            <td>${new Date(task.deadline).toLocaleDateString()}</td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${task.progressPercentage}%"></div>
-                                </div>
-                                <span>${task.progressPercentage}%</span>
-                            </td>
-                            <td>
-                                <button class="btn btn-outline update-progress-btn" data-task-id="${task.id}" style="padding: 5px 10px;">
-                                    <i class="fas fa-edit"></i> Update
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-
-                // Add event listeners to update progress buttons
-                document.querySelectorAll('.update-progress-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const taskId = parseInt(btn.getAttribute('data-task-id'));
-                        this.showTaskProgressModal(taskId);
-                    });
-                });
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6">Tasks module removed</td></tr>';
+                }
             }
 
             async handleUpdateTaskProgress() {
-                const progress = parseInt(document.getElementById('progress-percentage').value);
-                if (progress >= 0 && progress <= 100) {
-                    this.dataManager.updateTaskProgress(this.currentTaskId, progress);
-                    this.hideTaskProgressModal();
-                    this.showToast('Task progress updated!', 'success');
-                    this.renderTasks();
-                    this.updateDashboard();
-                } else {
-                    this.showToast('Please enter a valid progress percentage (0-100)', 'error');
-                }
+                this.showToast('Tasks module is disabled.', 'info');
             }
 
             // Feedback Management
@@ -4064,7 +4026,7 @@
             // Dashboard Updates
             updateDashboard() {
                 const teamPerformance = this.dataManager.getTeamPerformance();
-                const taskCompletion = this.dataManager.getTaskCompletionRate();
+                const taskCompletion = 0;
                 const attendanceStats = this.dataManager.getAttendanceStats();
 
                 // Update team performance metrics
@@ -4084,12 +4046,8 @@
                 document.getElementById('leave-count').textContent = attendanceStats.leave;
 
                 // Update daily tasks
-                const tasks = this.dataManager.getTasks();
-                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
-                const totalTasks = tasks.length || 1;
-                const taskPercentage = Math.round((completedTasks / totalTasks) * 100);
-                document.getElementById('water-level').style.height = `${taskPercentage}%`;
-                document.getElementById('daily-tasks-count').textContent = `${completedTasks}/${totalTasks}`;
+                document.getElementById('water-level').style.height = `0%`;
+                document.getElementById('daily-tasks-count').textContent = `0/0`;
 
                 // Refresh recent feedback
                 this.renderFeedback();
