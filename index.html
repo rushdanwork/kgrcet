@@ -1245,25 +1245,6 @@
                             </button>
                         </div>
 
-                        <!-- Daily Task Completion -->
-                        <div class="dashboard-stat-card">
-                            <div class="stat-card-header">
-                                <div class="stat-card-title">Daily Task Completion</div>
-                                <div class="stat-card-icon">
-                                    <i class="fas fa-tasks"></i>
-                                </div>
-                            </div>
-                            <div class="water-ball-container">
-                                <div class="water-ball">
-                                    <div class="water" id="water-level" style="height: 45%"></div>
-                                    <div class="water-ball-label" id="daily-tasks-count">9/20</div>
-                                </div>
-                            </div>
-                            <p style="text-align: center; color: var(--gray); margin-top: 10px;">
-                                Tasks completed today
-                            </p>
-                        </div>
-
                         <!-- Recent Feedback -->
                         <div class="dashboard-stat-card">
                             <div class="stat-card-header">
@@ -1960,23 +1941,6 @@
         </div>
     </div>
 
-    <!-- Task Progress Modal -->
-    <div class="modal" id="task-progress-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Update Task Progress</h3>
-                <button class="modal-close" id="close-task-progress-modal">&times;</button>
-            </div>
-            <form id="update-task-progress-form">
-                <div class="form-group">
-                    <label for="progress-percentage">Progress Percentage</label>
-                    <input type="number" id="progress-percentage" min="0" max="100" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Update Progress</button>
-            </form>
-        </div>
-    </div>
-
     <!-- Node Context Menu -->
     <div class="node-context-menu" id="node-context-menu">
         <div class="context-menu-item" id="context-edit">
@@ -2176,7 +2140,6 @@
                             managerId: 1
                         }
                     ],
-                    tasks: [],
                     feedback: [
                         {
                             id: 1,
@@ -2411,23 +2374,6 @@
                 return employees.find(e => e.id === id);
             }
 
-            // Task methods
-            getTasks() {
-                return [];
-            }
-
-            saveTasks() {
-                return [];
-            }
-
-            addTask() {
-                return null;
-            }
-
-            updateTaskProgress() {
-                return null;
-            }
-
             // Feedback methods
             getFeedback() {
                 return JSON.parse(localStorage.getItem('feedback')) || [];
@@ -2582,13 +2528,6 @@
                 return Math.round(totalPerformance / employees.length);
             }
 
-            getTaskCompletionRate() {
-                const tasks = this.getTasks();
-                if (tasks.length === 0) return 0;
-                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
-                return Math.round((completedTasks / tasks.length) * 100);
-            }
-
             getAttendanceStats() {
                 const todayAttendance = this.getTodaysAttendance();
                 return {
@@ -2636,7 +2575,6 @@
         class UIManager {
             constructor(dataManager) {
                 this.dataManager = dataManager;
-                this.currentTaskId = null;
                 this.initializeEventListeners();
                 this.checkAuthStatus();
             }
@@ -2756,30 +2694,6 @@
                 document.getElementById('reset-view').addEventListener('click', () => {
                     if (cy) cy.fit();
                 });
-
-                // Task management (disabled)
-                const createTaskForm = document.getElementById('create-task-form');
-                if (createTaskForm) {
-                    createTaskForm.addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        this.handleCreateTask();
-                    });
-                }
-
-                const closeTaskProgressModal = document.getElementById('close-task-progress-modal');
-                if (closeTaskProgressModal) {
-                    closeTaskProgressModal.addEventListener('click', () => {
-                        this.hideTaskProgressModal();
-                    });
-                }
-
-                const updateTaskProgressForm = document.getElementById('update-task-progress-form');
-                if (updateTaskProgressForm) {
-                    updateTaskProgressForm.addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        this.handleUpdateTaskProgress();
-                    });
-                }
 
                 // Feedback management
                 document.getElementById('give-feedback-form').addEventListener('submit', (e) => {
@@ -3098,21 +3012,6 @@
             hideEditEmployeeModal() {
                 document.getElementById('edit-employee-modal').classList.remove('active');
                 document.getElementById('edit-employee-form').reset();
-            }
-
-            showTaskProgressModal(taskId) {
-                this.currentTaskId = taskId;
-                const task = this.dataManager.getTasks().find(t => t.id === taskId);
-                if (task) {
-                    document.getElementById('progress-percentage').value = task.progressPercentage;
-                }
-                document.getElementById('task-progress-modal').classList.add('active');
-            }
-
-            hideTaskProgressModal() {
-                document.getElementById('task-progress-modal').classList.remove('active');
-                document.getElementById('update-task-progress-form').reset();
-                this.currentTaskId = null;
             }
 
             showContextMenu(x, y, nodeId) {
@@ -3466,22 +3365,6 @@
                     animate: true,
                     animationDuration: 500
                 }).run();
-            }
-
-            // Task Management
-            async handleCreateTask() {
-                this.showToast('Tasks module is disabled.', 'info');
-            }
-
-            renderTasks() {
-                const tbody = document.getElementById('tasks-table-body');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="6">Tasks module removed</td></tr>';
-                }
-            }
-
-            async handleUpdateTaskProgress() {
-                this.showToast('Tasks module is disabled.', 'info');
             }
 
             // Feedback Management
@@ -4046,10 +3929,6 @@
                 document.getElementById('absent-count').textContent = attendanceStats.absent;
                 document.getElementById('leave-count').textContent = attendanceStats.leave;
 
-                // Update daily tasks
-                document.getElementById('water-level').style.height = `0%`;
-                document.getElementById('daily-tasks-count').textContent = `0/0`;
-
                 // Refresh recent feedback
                 this.renderFeedback();
 
@@ -4294,7 +4173,6 @@
             populateEmployeeSelects() {
                 const employees = this.dataManager.getEmployees();
                 const selects = [
-                    'task-assignee',
                     'feedback-recipient',
                     'review-employee',
                     'document-employee',
