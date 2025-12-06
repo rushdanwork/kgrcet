@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
     <script src="https://unpkg.com/cytoscape-dagre/cytoscape-dagre.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <style>
         :root {
             --primary: #2c80ff;
@@ -1051,10 +1053,10 @@
                     Sign In
                 </button>
                 <div style="margin-top: 10px; display: flex; gap: 10px; flex-direction: column;">
-                    <button type="button" class="btn btn-outline" style="width: 100%;" onclick="window.location.href='/api/auth/google'">
+                    <button type="button" id="google-signin" class="btn btn-outline" style="width: 100%;">
                         <i class="fab fa-google"></i> Sign in with Google
                     </button>
-                    <button type="button" class="btn btn-outline" style="width: 100%;" onclick="window.location.href='/api/auth/microsoft'">
+                    <button type="button" id="microsoft-signin" class="btn btn-outline" style="width: 100%;">
                         <i class="fab fa-microsoft"></i> Sign in with Microsoft
                     </button>
                 </div>
@@ -1222,15 +1224,6 @@
                             </div>
                             <div class="progress-container">
                                 <div class="progress-label">
-                                    <span>Task Completion</span>
-                                    <span id="team-task-completion">65%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="team-task-bar" style="width: 65%"></div>
-                                </div>
-                            </div>
-                            <div class="progress-container">
-                                <div class="progress-label">
                                     <span>Employee Engagement</span>
                                     <span id="team-engagement">82%</span>
                                 </div>
@@ -1241,25 +1234,6 @@
                             <button class="btn btn-primary" style="margin-top: 20px; width: 100%;" id="view-analytics">
                                 <i class="fas fa-chart-line"></i> View Detailed Analytics
                             </button>
-                        </div>
-
-                        <!-- Daily Task Completion -->
-                        <div class="dashboard-stat-card">
-                            <div class="stat-card-header">
-                                <div class="stat-card-title">Daily Task Completion</div>
-                                <div class="stat-card-icon">
-                                    <i class="fas fa-tasks"></i>
-                                </div>
-                            </div>
-                            <div class="water-ball-container">
-                                <div class="water-ball">
-                                    <div class="water" id="water-level" style="height: 45%"></div>
-                                    <div class="water-ball-label" id="daily-tasks-count">9/20</div>
-                                </div>
-                            </div>
-                            <p style="text-align: center; color: var(--gray); margin-top: 10px;">
-                                Tasks completed today
-                            </p>
                         </div>
 
                         <!-- Recent Feedback -->
@@ -1958,23 +1932,6 @@
         </div>
     </div>
 
-    <!-- Task Progress Modal -->
-    <div class="modal" id="task-progress-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Update Task Progress</h3>
-                <button class="modal-close" id="close-task-progress-modal">&times;</button>
-            </div>
-            <form id="update-task-progress-form">
-                <div class="form-group">
-                    <label for="progress-percentage">Progress Percentage</label>
-                    <input type="number" id="progress-percentage" min="0" max="100" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Update Progress</button>
-            </form>
-        </div>
-    </div>
-
     <!-- Node Context Menu -->
     <div class="node-context-menu" id="node-context-menu">
         <div class="context-menu-item" id="context-edit">
@@ -2022,6 +1979,21 @@
         let charts = {};
 
         const apiBase = 'http://localhost:4000/api';
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDLNTcJIs5MzTwbF1r-81fmEHh_xpP4-cc",
+          authDomain: "kgrcethr.firebaseapp.com",
+          projectId: "kgrcethr",
+          storageBucket: "kgrcethr.firebasestorage.app",
+          messagingSenderId: "106366662532",
+          appId: "1:106366662532:web:ea5517e944b359801d0fd1",
+          measurementId: "G-5DQH9LLZTQ"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        const microsoftProvider = new firebase.auth.OAuthProvider('microsoft.com');
 
         function getAuthHeaders() {
             const token = localStorage.getItem('token');
@@ -2159,30 +2131,6 @@
                             managerId: 1
                         }
                     ],
-                    tasks: [
-                        {
-                            id: 1,
-                            title: 'Q4 Marketing Campaign',
-                            description: 'Launch new marketing campaign for holiday season',
-                            metric: 'Increase sales by 15%',
-                            deadline: '2023-12-15',
-                            assigneeId: 2,
-                            progressPercentage: 65,
-                            status: 'In Progress',
-                            createdAt: '2023-10-01'
-                        },
-                        {
-                            id: 2,
-                            title: 'Website Redesign',
-                            description: 'Redesign company website with modern UI',
-                            metric: 'Improve user engagement by 25%',
-                            deadline: '2023-11-30',
-                            assigneeId: 5,
-                            progressPercentage: 40,
-                            status: 'In Progress',
-                            createdAt: '2023-09-15'
-                        }
-                    ],
                     feedback: [
                         {
                             id: 1,
@@ -2304,7 +2252,6 @@
                 const defaults = this.getDefaultData();
 
                 this.saveEmployees(defaults.employees);
-                this.saveTasks(defaults.tasks);
                 this.saveFeedback(defaults.feedback);
                 this.saveReviews(defaults.reviews);
                 this.saveAttendance(defaults.attendance);
@@ -2322,27 +2269,40 @@
 
             // Authentication methods
             async signIn(email, password) {
-                const res = await apiPost('/auth/login', { email, password });
-                if (res.token) {
-                    this.accessToken = res.token;
-                    this.currentUser = res.user;
-                    localStorage.setItem('token', res.token);
-                    localStorage.setItem('user', JSON.stringify(res.user));
-                    return { success: true, user: res.user };
+                try {
+                    const credential = await auth.signInWithEmailAndPassword(email, password);
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: credential.user.displayName || email });
+                    if (res && res.user) {
+                        this.accessToken = idToken;
+                        this.currentUser = res.user;
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        return { success: true, user: res.user };
+                    }
+                    return { success: false, error: res?.message || 'Login failed' };
+                } catch (err) {
+                    return { success: false, error: err.message };
                 }
-                return { success: false, error: res.message || 'Login failed' };
             }
 
             async signUp(payload) {
-                const res = await apiPost('/auth/signup', payload);
-                if (res.token) {
-                    this.accessToken = res.token;
-                    this.currentUser = res.user;
-                    localStorage.setItem('token', res.token);
-                    localStorage.setItem('user', JSON.stringify(res.user));
-                    return { success: true, user: res.user };
+                try {
+                    const credential = await auth.createUserWithEmailAndPassword(payload.email, payload.password);
+                    await credential.user.updateProfile({ displayName: payload.name });
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: payload.name });
+                    if (res && res.user) {
+                        this.accessToken = idToken;
+                        this.currentUser = res.user;
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        return { success: true, user: res.user };
+                    }
+                    return { success: false, error: res?.message || 'Signup failed' };
+                } catch (err) {
+                    return { success: false, error: err.message };
                 }
-                return { success: false, error: res.message || 'Signup failed' };
             }
 
             async fetchCurrentUser() {
@@ -2357,6 +2317,7 @@
             }
 
             logout() {
+                auth.signOut();
                 this.currentUser = null;
                 this.accessToken = null;
                 this.refreshToken = null;
@@ -2402,41 +2363,6 @@
             getEmployeeById(id) {
                 const employees = this.getEmployees();
                 return employees.find(e => e.id === id);
-            }
-
-            // Task methods
-            getTasks() {
-                return JSON.parse(localStorage.getItem('tasks')) || [];
-            }
-
-            saveTasks(tasks) {
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-            }
-
-            addTask(task) {
-                const tasks = this.getTasks();
-                const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-                task.id = newId;
-                task.createdAt = new Date().toISOString().split('T')[0];
-                task.progressPercentage = 0;
-                task.status = 'In Progress';
-                tasks.push(task);
-                this.saveTasks(tasks);
-                return task;
-            }
-
-            updateTaskProgress(id, progress) {
-                const tasks = this.getTasks();
-                const task = tasks.find(t => t.id === id);
-                if (task) {
-                    task.progressPercentage = progress;
-                    if (progress >= 100) {
-                        task.status = 'Completed';
-                    }
-                    this.saveTasks(tasks);
-                    return task;
-                }
-                return null;
             }
 
             // Feedback methods
@@ -2593,13 +2519,6 @@
                 return Math.round(totalPerformance / employees.length);
             }
 
-            getTaskCompletionRate() {
-                const tasks = this.getTasks();
-                if (tasks.length === 0) return 0;
-                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
-                return Math.round((completedTasks / tasks.length) * 100);
-            }
-
             getAttendanceStats() {
                 const todayAttendance = this.getTodaysAttendance();
                 return {
@@ -2647,7 +2566,6 @@
         class UIManager {
             constructor(dataManager) {
                 this.dataManager = dataManager;
-                this.currentTaskId = null;
                 this.initializeEventListeners();
                 this.checkAuthStatus();
             }
@@ -2679,6 +2597,14 @@
                 document.getElementById('signup-form').addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.handleSignUp();
+                });
+
+                document.getElementById('google-signin').addEventListener('click', () => {
+                    this.handleProviderLogin('google');
+                });
+
+                document.getElementById('microsoft-signin').addEventListener('click', () => {
+                    this.handleProviderLogin('microsoft');
                 });
 
                 document.getElementById('logout-btn').addEventListener('click', (e) => {
@@ -2760,30 +2686,6 @@
                     if (cy) cy.fit();
                 });
 
-                // Task management (disabled)
-                const createTaskForm = document.getElementById('create-task-form');
-                if (createTaskForm) {
-                    createTaskForm.addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        this.handleCreateTask();
-                    });
-                }
-
-                const closeTaskProgressModal = document.getElementById('close-task-progress-modal');
-                if (closeTaskProgressModal) {
-                    closeTaskProgressModal.addEventListener('click', () => {
-                        this.hideTaskProgressModal();
-                    });
-                }
-
-                const updateTaskProgressForm = document.getElementById('update-task-progress-form');
-                if (updateTaskProgressForm) {
-                    updateTaskProgressForm.addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        this.handleUpdateTaskProgress();
-                    });
-                }
-
                 // Feedback management
                 document.getElementById('give-feedback-form').addEventListener('submit', (e) => {
                     e.preventDefault();
@@ -2822,15 +2724,6 @@
                 document.getElementById('upload-document-form').addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.handleUploadDocument();
-                });
-
-                // Quick actions
-                document.getElementById('quick-task').addEventListener('click', () => {
-                    this.navigateToPage('tasks');
-                });
-
-                document.getElementById('quick-feedback').addEventListener('click', () => {
-                    this.navigateToPage('feedback');
                 });
 
                 // Analytics
@@ -2917,6 +2810,11 @@
                 const email = document.getElementById('signin-email').value;
                 const password = document.getElementById('signin-password').value;
 
+                if (!email || !password) {
+                    this.showToast('Email and password are required', 'error');
+                    return;
+                }
+
                 const result = await this.dataManager.signIn(email, password);
                 if (result.success) {
                     await this.showMainApp();
@@ -2934,12 +2832,36 @@
                     role: document.getElementById('signup-role').value
                 };
 
+                if (!formData.name || !formData.email || !formData.password) {
+                    this.showToast('Name, email, and password are required', 'error');
+                    return;
+                }
+
                 const result = await this.dataManager.signUp(formData);
                 if (result.success) {
                     await this.showMainApp();
                     this.showToast('Account created successfully!', 'success');
                 } else {
-                    this.showToast('Error creating account', 'error');
+                    this.showToast(result.error || 'Error creating account', 'error');
+                }
+            }
+
+            async handleProviderLogin(provider) {
+                try {
+                    const authProvider = provider === 'google' ? googleProvider : microsoftProvider;
+                    const credential = await auth.signInWithPopup(authProvider);
+                    const idToken = await credential.user.getIdToken();
+                    const res = await apiPost('/auth/firebase-login', { idToken, name: credential.user.displayName || credential.user.email });
+                    if (res && res.user) {
+                        localStorage.setItem('token', idToken);
+                        localStorage.setItem('user', JSON.stringify(res.user));
+                        this.dataManager.accessToken = idToken;
+                        this.dataManager.currentUser = res.user;
+                        await this.showMainApp();
+                        this.showToast('Signed in successfully', 'success');
+                    }
+                } catch (err) {
+                    this.showToast(err.message || 'Provider sign-in failed', 'error');
                 }
             }
 
@@ -3081,21 +3003,6 @@
             hideEditEmployeeModal() {
                 document.getElementById('edit-employee-modal').classList.remove('active');
                 document.getElementById('edit-employee-form').reset();
-            }
-
-            showTaskProgressModal(taskId) {
-                this.currentTaskId = taskId;
-                const task = this.dataManager.getTasks().find(t => t.id === taskId);
-                if (task) {
-                    document.getElementById('progress-percentage').value = task.progressPercentage;
-                }
-                document.getElementById('task-progress-modal').classList.add('active');
-            }
-
-            hideTaskProgressModal() {
-                document.getElementById('task-progress-modal').classList.remove('active');
-                document.getElementById('update-task-progress-form').reset();
-                this.currentTaskId = null;
             }
 
             showContextMenu(x, y, nodeId) {
@@ -3449,76 +3356,6 @@
                     animate: true,
                     animationDuration: 500
                 }).run();
-            }
-
-            // Task Management
-            async handleCreateTask() {
-                const task = {
-                    title: document.getElementById('task-title').value,
-                    description: document.getElementById('task-description').value,
-                    metric: document.getElementById('task-metric').value,
-                    deadline: document.getElementById('task-deadline').value,
-                    assigneeId: parseInt(document.getElementById('task-assignee').value),
-                    status: 'In Progress'
-                };
-
-                this.dataManager.addTask(task);
-                document.getElementById('create-task-form').reset();
-                this.showToast('Task created successfully!', 'success');
-                this.renderTasks();
-                this.updateDashboard();
-            }
-
-            renderTasks() {
-                const tasks = this.dataManager.getTasks();
-                const employees = this.dataManager.getEmployees();
-                const tbody = document.getElementById('tasks-table-body');
-
-                tbody.innerHTML = tasks.map(task => {
-                    const assignee = employees.find(emp => emp.id === task.assigneeId);
-                    const assigneeName = assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unknown';
-                    
-                    return `
-                        <tr>
-                            <td>${task.title}</td>
-                            <td>${task.metric}</td>
-                            <td>${assigneeName}</td>
-                            <td>${new Date(task.deadline).toLocaleDateString()}</td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${task.progressPercentage}%"></div>
-                                </div>
-                                <span>${task.progressPercentage}%</span>
-                            </td>
-                            <td>
-                                <button class="btn btn-outline update-progress-btn" data-task-id="${task.id}" style="padding: 5px 10px;">
-                                    <i class="fas fa-edit"></i> Update
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-
-                // Add event listeners to update progress buttons
-                document.querySelectorAll('.update-progress-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const taskId = parseInt(btn.getAttribute('data-task-id'));
-                        this.showTaskProgressModal(taskId);
-                    });
-                });
-            }
-
-            async handleUpdateTaskProgress() {
-                const progress = parseInt(document.getElementById('progress-percentage').value);
-                if (progress >= 0 && progress <= 100) {
-                    this.dataManager.updateTaskProgress(this.currentTaskId, progress);
-                    this.hideTaskProgressModal();
-                    this.showToast('Task progress updated!', 'success');
-                    this.renderTasks();
-                    this.updateDashboard();
-                } else {
-                    this.showToast('Please enter a valid progress percentage (0-100)', 'error');
-                }
             }
 
             // Feedback Management
@@ -4064,14 +3901,10 @@
             // Dashboard Updates
             updateDashboard() {
                 const teamPerformance = this.dataManager.getTeamPerformance();
-                const taskCompletion = this.dataManager.getTaskCompletionRate();
                 const attendanceStats = this.dataManager.getAttendanceStats();
 
                 // Update team performance metrics
                 document.getElementById('team-performance-value').textContent = `${teamPerformance}%`;
-                
-                document.getElementById('team-task-completion').textContent = `${taskCompletion}%`;
-                document.getElementById('team-task-bar').style.width = `${taskCompletion}%`;
 
                 // Update engagement (demo data)
                 const engagement = 82;
@@ -4082,14 +3915,6 @@
                 document.getElementById('present-count').textContent = attendanceStats.present;
                 document.getElementById('absent-count').textContent = attendanceStats.absent;
                 document.getElementById('leave-count').textContent = attendanceStats.leave;
-
-                // Update daily tasks
-                const tasks = this.dataManager.getTasks();
-                const completedTasks = tasks.filter(t => t.progressPercentage >= 100).length;
-                const totalTasks = tasks.length || 1;
-                const taskPercentage = Math.round((completedTasks / totalTasks) * 100);
-                document.getElementById('water-level').style.height = `${taskPercentage}%`;
-                document.getElementById('daily-tasks-count').textContent = `${completedTasks}/${totalTasks}`;
 
                 // Refresh recent feedback
                 this.renderFeedback();
@@ -4335,7 +4160,6 @@
             populateEmployeeSelects() {
                 const employees = this.dataManager.getEmployees();
                 const selects = [
-                    'task-assignee',
                     'feedback-recipient',
                     'review-employee',
                     'document-employee',
