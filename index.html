@@ -2234,6 +2234,7 @@
                             createdAt: '2023-10-20'
                         }
                     ],
+                    tasks: [],
                     shifts: [],
                     documents: [],
                     currentUser: {
@@ -2256,6 +2257,7 @@
                 this.saveReviews(defaults.reviews);
                 this.saveAttendance(defaults.attendance);
                 this.saveLeaves(defaults.leaves);
+                this.saveTasks(defaults.tasks);
                 this.saveShifts(defaults.shifts);
                 this.saveDocuments(defaults.documents);
 
@@ -2363,6 +2365,26 @@
             getEmployeeById(id) {
                 const employees = this.getEmployees();
                 return employees.find(e => e.id === id);
+            }
+
+            // Task methods (module disabled)
+            getTasks() {
+                return JSON.parse(localStorage.getItem('tasks')) || [];
+            }
+
+            saveTasks(tasks) {
+                localStorage.setItem('tasks', JSON.stringify(tasks || []));
+                return tasks || [];
+            }
+
+            addTask() {
+                this.showToast?.('Tasks module is disabled.', 'info');
+                return null;
+            }
+
+            updateTaskProgress() {
+                this.showToast?.('Tasks module is disabled.', 'info');
+                return null;
             }
 
             // Feedback methods
@@ -3780,25 +3802,41 @@
                 const shifts = this.dataManager.getShifts();
                 const employees = this.dataManager.getEmployees();
                 const container = document.getElementById('shift-schedule');
-                
+
                 container.innerHTML = shifts.map(shift => {
-                    const assignedEmployees = shift.employeeIds.map(id => 
+                    const assignedEmployees = shift.employeeIds.map(id =>
                         employees.find(emp => emp.id === id)
                     ).filter(emp => emp);
-                    
+
                     return `
                         <div class="shift-card">
                             <h4>${shift.name}</h4>
                             <p>${shift.startTime} - ${shift.endTime}</p>
                             <p><strong>Assigned Employees:</strong></p>
                             <ul>
-                                ${assignedEmployees.map(emp => 
+                                ${assignedEmployees.map(emp =>
                                     `<li>${emp.firstName} ${emp.lastName}</li>`
                                 ).join('')}
                             </ul>
                         </div>
                     `;
                 }).join('') || '<p>No shifts scheduled</p>';
+            }
+
+            // Task Management (disabled)
+            async handleCreateTask() {
+                this.showToast('Tasks module is disabled.', 'info');
+            }
+
+            renderTasks() {
+                const tbody = document.getElementById('tasks-table-body');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6">Tasks module removed</td></tr>';
+                }
+            }
+
+            async handleUpdateTaskProgress() {
+                this.showToast('Tasks module is disabled.', 'info');
             }
 
             // Document Management
